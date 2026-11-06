@@ -5,9 +5,12 @@ import (
 	"testing"
 )
 
+const testMongoURI = "mongodb://localhost:27017"
+
 func TestLoadDefaults(t *testing.T) {
 	t.Setenv("PORT", "")
 	t.Setenv("LOG_LEVEL", "")
+	t.Setenv("MONGODB_URI", testMongoURI)
 
 	cfg, err := Load()
 	if err != nil {
@@ -24,6 +27,7 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadOverrides(t *testing.T) {
 	t.Setenv("PORT", "9090")
 	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("MONGODB_URI", testMongoURI)
 
 	cfg, err := Load()
 	if err != nil {
@@ -64,8 +68,19 @@ func TestLoadRejectsInvalidPort(t *testing.T) {
 func TestLoadRejectsInvalidLogLevel(t *testing.T) {
 	t.Setenv("PORT", "")
 	t.Setenv("LOG_LEVEL", "loud")
+	t.Setenv("MONGODB_URI", testMongoURI)
 
 	if _, err := Load(); err == nil {
 		t.Error(`Load() with LOG_LEVEL="loud": expected an error, got nil`)
+	}
+}
+
+func TestLoadRequiresMongoURI(t *testing.T) {
+	t.Setenv("PORT", "")
+	t.Setenv("LOG_LEVEL", "")
+	t.Setenv("MONGODB_URI", "")
+
+	if _, err := Load(); err == nil {
+		t.Error("Load() without MONGODB_URI: expected an error, got nil")
 	}
 }

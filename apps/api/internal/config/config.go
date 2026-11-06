@@ -2,6 +2,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,6 +13,7 @@ import (
 type Config struct {
 	Port     string
 	LogLevel slog.Level
+	MongoURI string
 }
 
 // Load reads configuration from the environment, applies defaults,
@@ -27,7 +29,13 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("invalid LOG_LEVEL: %w", err)
 	}
 
-	return Config{Port: port, LogLevel: level}, nil
+	mongoURI := os.Getenv("MONGODB_URI")
+	if mongoURI == "" {
+		return Config{}, errors.New("MONGODB_URI is required")
+	}
+
+	return Config{Port: port, LogLevel: level, MongoURI: mongoURI}, nil
+
 }
 
 // getEnv returns the environment variable's value, or fallback if it is unset or empty.
