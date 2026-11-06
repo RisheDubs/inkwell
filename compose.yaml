@@ -1,0 +1,20 @@
+name: inkwell
+
+services:
+  mongodb:
+    image: mongodb/mongodb-atlas-local:8.3.9
+    hostname: mongodb
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env}
+      MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+      - mongo-search:/data/mongot
+
+volumes:
+  mongo-data:
+  mongo-config:
+  mongo-search:
