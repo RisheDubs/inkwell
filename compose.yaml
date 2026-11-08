@@ -14,6 +14,21 @@ services:
       - mongo-config:/data/configdb
       - mongo-search:/data/mongot
 
+  api:
+    build:
+      context: ./apps/api
+    image: inkwell-api:dev
+    environment:
+      PORT: "8080"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MONGODB_URI: "mongodb://${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env}:${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/?directConnection=true&authSource=admin"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   mongo-data:
   mongo-config:
