@@ -11,8 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RisheDubs/inkwell/apps/api/internal/auth"
 	"github.com/RisheDubs/inkwell/apps/api/internal/config"
 	"github.com/RisheDubs/inkwell/apps/api/internal/httpapi"
+	"github.com/RisheDubs/inkwell/apps/api/internal/journal"
 	mongostore "github.com/RisheDubs/inkwell/apps/api/internal/store/mongo"
 )
 
@@ -31,13 +33,26 @@ func main() {
 	defer stop()
 
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	store, err := mongostore.Connect(connectCtx, cfg.MongoURI)
+	store, err := mongostore.Connect(connectCtx, cfg.MongoURI, cfg.MongoDatabase)
+	if err == nil {
+		err = store.EnsureIndexes(connectCtx)
+	}
 	cancel()
 	if err != nil {
-		slog.Error("connect to mongodb", "err", err)
+		slog.Error("set up mongodb", "err", err)
 		os.Exit(1)
 	}
-	slog.Info("connected to mongodb")
+	slog.Info("connected to mongodb", "database", cfg.MongoDatabase)
+
+	// Downloads Cognito's public keys and refreshes them in the background until ctx ends.
+	verifier, err := auth.NewCognitoVerifier(ctx, cfg.Cognito.JWKSURL(), cfg.Cognito.Issuer(), cfg.Cognito.ClientID)
+	if err != nil {
+		slog.Error("set up token verifier", "err", err)
+		_ = store.Close(context.Background())
+		os.Exit(1)
+	}
+
+	svc := journal.NewService(store, auth.NewUserInfoClient(cfg.Cognito.Endpoint()))
 
 	// Open the port first, so "listening" is only logged once it is true.
 	ln, err := net.Listen("tcp", ":"+cfg.Port)
@@ -48,7 +63,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Handler:           httpapi.NewRouter(store),
+		Handler:           httpapi.NewRouter(httpapi.Deps{DB: store, Verifier: verifier, Me: svc}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -56,7 +71,7 @@ func main() {
 	go func() {
 		serveErr <- srv.Serve(ln)
 	}()
-	slog.Info("api listening", "addr", ln.Addr().String(), "log_level", cfg.LogLevel.String())
+	slog.Info("api listening", "addr", ln.Addr().String(), "log_level", cfg.LogLevel.String(), "user_pool", cfg.Cognito.UserPoolID)
 
 	// Wait for either a server failure or a shutdown signal.
 	select {
