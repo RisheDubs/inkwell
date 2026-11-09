@@ -52,3 +52,30 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build the API image
         run: docker build -t inkwell-api:ci .
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    env:
+      MONGO_ROOT_USERNAME: ci
+      # compose.yaml requires these; the integration tests don't call Cognito.
+      COGNITO_USER_POOL_ID: ap-southeast-2_ci
+      COGNITO_CLIENT_ID: ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - name: Generate a throwaway database password
+        run: |
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          echo "MONGO_ROOT_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Start MongoDB and wait until it is healthy
+        working-directory: .
+        run: docker compose up -d --wait mongodb
+      - name: Run integration tests
+        run: |
+          export MONGODB_URI="mongodb://ci:${MONGO_ROOT_PASSWORD}@localhost:27017/?directConnection=true&authSource=admin"
+          go test -tags integration -count=1 -v ./internal/store/...

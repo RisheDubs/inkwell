@@ -1,13 +1,16 @@
+// Package httpapi exposes Inkwell over HTTP.
 package httpapi
 
 import (
 	"context"
-	"encoding/json"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/RisheDubs/inkwell/apps/api/internal/auth"
+	"github.com/RisheDubs/inkwell/apps/api/internal/journal"
 )
 
 // Pinger reports whether a dependency, such as the database, is reachable.
@@ -15,11 +18,42 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
+// TokenVerifier checks an access token and returns its claims.
+type TokenVerifier interface {
+	Verify(token string) (auth.Claims, error)
+}
+
+// MeService handles the signed-in user's own profile.
+type MeService interface {
+	Me(ctx context.Context, userID, accessToken string) (journal.User, error)
+	UpdateMe(ctx context.Context, userID string, in journal.UpdateMeInput) (journal.User, error)
+}
+
+// Deps are everything the router needs. Tests pass fakes.
+type Deps struct {
+	DB       Pinger
+	Verifier TokenVerifier
+	Me       MeService
+}
+
 // NewRouter builds the HTTP router with every route registered.
-func NewRouter(db Pinger) http.Handler {
+func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 
-	r.Get("/healthz", healthz(db))
+	r.Use(middleware.RequestID) // give every request an ID
+	r.Use(exposeRequestID)      // and send it back in X-Request-Id
+	r.Use(requestLogger)        // one JSON log line per request
+	r.Use(middleware.Recoverer) // a panic becomes a 500, not a crashed server
+
+	// Public: no token needed.
+	r.Get("/healthz", healthz(d.DB))
+
+	// Everything under /api needs a valid Cognito access token.
+	r.Route("/api", func(r chi.Router) {
+		r.Use(requireAuth(d.Verifier))
+		r.Get("/me", getMe(d.Me))
+		r.Patch("/me", patchMe(d.Me))
+	})
 
 	return r
 }
@@ -31,21 +65,11 @@ func healthz(db Pinger) http.HandlerFunc {
 		defer cancel()
 
 		if err := db.Ping(ctx); err != nil {
-			slog.Error("healthz: database ping failed", "err", err)
+			logError(r, "healthz: database ping failed", err)
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
 			return
 		}
 
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	}
-}
-
-// writeJSON sends v as a JSON response with the given status code.
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		slog.Error("write JSON response", "err", err)
 	}
 }

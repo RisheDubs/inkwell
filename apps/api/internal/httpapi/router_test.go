@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -31,11 +30,8 @@ func TestHealthz(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			router := NewRouter(fakePinger{err: tc.pingErr})
-			req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
-			rec := httptest.NewRecorder()
-
-			router.ServeHTTP(rec, req)
+			router := newTestRouter(t, testDeps{ping: tc.pingErr})
+			rec := do(t, router, http.MethodGet, "/healthz", "", "")
 
 			if rec.Code != tc.wantCode {
 				t.Errorf("status = %d, want %d", rec.Code, tc.wantCode)
@@ -55,14 +51,28 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
-func TestUnknownRouteReturns404(t *testing.T) {
-	router := NewRouter(fakePinger{})
-	req := httptest.NewRequest(http.MethodGet, "/nope", nil)
-	rec := httptest.NewRecorder()
+func TestHealthzNeedsNoToken(t *testing.T) {
+	router := newTestRouter(t, testDeps{})
+	rec := do(t, router, http.MethodGet, "/healthz", "", "")
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
 
-	router.ServeHTTP(rec, req)
+func TestUnknownRouteReturns404(t *testing.T) {
+	router := newTestRouter(t, testDeps{})
+	rec := do(t, router, http.MethodGet, "/nope", "", "")
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestResponsesIncludeRequestID(t *testing.T) {
+	router := newTestRouter(t, testDeps{})
+	rec := do(t, router, http.MethodGet, "/healthz", "", "")
+
+	if rec.Header().Get("X-Request-Id") == "" {
+		t.Error("X-Request-Id header is missing")
 	}
 }
