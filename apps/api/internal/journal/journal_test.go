@@ -62,6 +62,28 @@ func (f *fakeRepo) UpdateUser(_ context.Context, id string, in UpdateMeInput) (U
 	return u, nil
 }
 
+func (f *fakeRepo) FindJournal(_ context.Context, ownerID string) (Journal, error) {
+	f.calls = append(f.calls, "FindJournal")
+	j, ok := f.journals[ownerID]
+	if !ok {
+		return Journal{}, ErrNotFound
+	}
+	return j, nil
+}
+
+func (f *fakeRepo) UpdateJournal(_ context.Context, ownerID string, in UpdateJournalInput) (Journal, error) {
+	f.calls = append(f.calls, "UpdateJournal")
+	j, ok := f.journals[ownerID]
+	if !ok {
+		return Journal{}, ErrNotFound
+	}
+	if in.Title != nil {
+		j.Title = *in.Title
+	}
+	f.journals[ownerID] = j
+	return j, nil
+}
+
 type fakeEmails struct {
 	email string
 	err   error

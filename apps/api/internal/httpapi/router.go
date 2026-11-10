@@ -34,6 +34,13 @@ type Deps struct {
 	DB       Pinger
 	Verifier TokenVerifier
 	Me       MeService
+	Journals JournalService
+}
+
+// JournalService handles the signed-in user's journal.
+type JournalService interface {
+	Journal(ctx context.Context, ownerID string) (journal.Journal, error)
+	UpdateJournal(ctx context.Context, ownerID string, in journal.UpdateJournalInput) (journal.Journal, error)
 }
 
 // NewRouter builds the HTTP router with every route registered.
@@ -53,6 +60,8 @@ func NewRouter(d Deps) http.Handler {
 		r.Use(requireAuth(d.Verifier))
 		r.Get("/me", getMe(d.Me))
 		r.Patch("/me", patchMe(d.Me))
+		r.Get("/journal", getJournal(d.Journals))
+		r.Patch("/journal", patchJournal(d.Journals))
 	})
 
 	return r
