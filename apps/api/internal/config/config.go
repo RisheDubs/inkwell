@@ -18,6 +18,7 @@ type Config struct {
 	MongoURI      string
 	MongoDatabase string
 	Cognito       CognitoConfig
+	Content       ContentConfig
 }
 
 // CognitoConfig identifies the Cognito user pool and app client whose tokens the API accepts.
@@ -42,8 +43,21 @@ func (c CognitoConfig) Endpoint() string {
 	return fmt.Sprintf("https://cognito-idp.%s.amazonaws.com/", c.Region)
 }
 
-// A user pool ID looks like "ap-southeast-2_AbC123xyZ": the region, an underscore, then an ID.
-var userPoolIDPattern = regexp.MustCompile(`^([a-z]{2}(?:-[a-z]+)+-\d+)_[A-Za-z0-9]+$`)
+// ContentConfig is where entry bodies and images live: one private bucket, one KMS key.
+type ContentConfig struct {
+	Region    string
+	Bucket    string
+	KMSKeyARN string
+}
+
+var (
+	// A user pool ID looks like "ap-southeast-2_AbC123xyZ": the region, an underscore, then an ID.
+	userPoolIDPattern = regexp.MustCompile(`^([a-z]{2}(?:-[a-z]+)+-\d+)_[A-Za-z0-9]+$`)
+	// S3 bucket names: 3-63 characters, lowercase letters, numbers, dots and hyphens.
+	bucketPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
+	// A full key ARN, e.g. arn:aws:kms:ap-southeast-2:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab
+	kmsKeyARNPattern = regexp.MustCompile(`^arn:aws:kms:[a-z0-9-]+:\d{12}:key/[0-9a-f-]{36}$`)
+)
 
 // Load reads configuration from the environment, applies defaults,
 // and returns an error if any value is missing or invalid.
@@ -74,6 +88,16 @@ func Load() (Config, error) {
 		return Config{}, errors.New("COGNITO_CLIENT_ID is required")
 	}
 
+	bucket := strings.TrimSpace(os.Getenv("S3_CONTENT_BUCKET"))
+	if !bucketPattern.MatchString(bucket) {
+		return Config{}, fmt.Errorf("invalid S3_CONTENT_BUCKET %q: expected a bucket name like inkwell-dev-content-123456789012", bucket)
+	}
+
+	keyARN := strings.TrimSpace(os.Getenv("KMS_KEY_ARN"))
+	if !kmsKeyARNPattern.MatchString(keyARN) {
+		return Config{}, errors.New("invalid KMS_KEY_ARN: expected the full key ARN, arn:aws:kms:<region>:<account>:key/<key-id>")
+	}
+
 	return Config{
 		Port:          port,
 		LogLevel:      level,
@@ -83,6 +107,11 @@ func Load() (Config, error) {
 			Region:     match[1],
 			UserPoolID: poolID,
 			ClientID:   clientID,
+		},
+		Content: ContentConfig{
+			Region:    getEnv("AWS_REGION", match[1]), // default: the user pool's region
+			Bucket:    bucket,
+			KMSKeyARN: keyARN,
 		},
 	}, nil
 }
