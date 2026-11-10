@@ -25,11 +25,17 @@ services:
       MONGODB_DATABASE: inkwell
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:?set COGNITO_USER_POOL_ID in .env}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:?set COGNITO_CLIENT_ID in .env}
+      AWS_REGION: ap-southeast-2
+      S3_CONTENT_BUCKET: ${S3_CONTENT_BUCKET:-}
+      KMS_KEY_ARN: ${KMS_KEY_ARN:-}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
       mongodb:
         condition: service_healthy
+    env_file:
+      - path: .aws-session.env
+        required: false   # the stack still starts without it; entry routes then fail with a clear AWS error
     restart: unless-stopped
 
 volumes:
