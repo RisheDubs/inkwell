@@ -39,6 +39,7 @@ type Theme struct {
 
 // Journal is a user's notebook. MongoDB assigns its _id.
 type Journal struct {
+	ID         string    `bson:"-" json:"id"`
 	OwnerID    string    `bson:"ownerId" json:"ownerId"`
 	Title      string    `bson:"title" json:"title"`
 	Visibility string    `bson:"visibility" json:"visibility"`
@@ -72,6 +73,8 @@ type Repository interface {
 	EnsureUser(ctx context.Context, u User) (User, error)
 	EnsureJournal(ctx context.Context, j Journal) error
 	UpdateUser(ctx context.Context, id string, in UpdateMeInput) (User, error)
+	FindJournal(ctx context.Context, ownerID string) (Journal, error)
+	UpdateJournal(ctx context.Context, ownerID string, in UpdateJournalInput) (Journal, error)
 }
 
 // EmailLookup finds the email address belonging to an access token's user.
