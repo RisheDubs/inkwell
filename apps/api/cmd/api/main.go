@@ -63,7 +63,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Handler:           httpapi.NewRouter(httpapi.Deps{DB: store, Verifier: verifier, Me: svc}),
+		Handler:           httpapi.NewRouter(httpapi.Deps{DB: store, Verifier: verifier, Me: svc, Journals: svc}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
