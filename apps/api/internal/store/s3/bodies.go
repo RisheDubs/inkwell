@@ -61,7 +61,7 @@ func (b *Bodies) GetBody(ctx context.Context, key string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get %s: %w", key, err)
 	}
-	defer out.Body.Close()
+	defer func() { _ = out.Body.Close() }() // read in full already; a close error changes nothing
 
 	// Read one byte past the limit: if we get it, the object is too big.
 	data, err := io.ReadAll(io.LimitReader(out.Body, b.maxBytes+1))
