@@ -14,6 +14,7 @@ import (
 const (
 	usersCollection    = "users"
 	journalsCollection = "journals"
+	entriesCollection  = "entries"
 )
 
 // Store holds the MongoDB client shared by the whole API.
@@ -70,6 +71,22 @@ func (s *Store) EnsureIndexes(ctx context.Context) error {
 	})
 	if err != nil {
 		return fmt.Errorf("create journals.ownerId index: %w", err)
+	}
+
+	// Timeline (newest first) and tag filter. _id breaks ties between entries on the same date,
+	// which cursor pagination needs to give every entry a unique position.
+	_, err = s.db.Collection(entriesCollection).Indexes().CreateMany(ctx, []mongodriver.IndexModel{
+		{
+			Keys:    bson.D{{Key: "ownerId", Value: 1}, {Key: "entryDate", Value: -1}, {Key: "_id", Value: -1}},
+			Options: options.Index().SetName("owner_timeline"),
+		},
+		{
+			Keys:    bson.D{{Key: "ownerId", Value: 1}, {Key: "tags", Value: 1}},
+			Options: options.Index().SetName("owner_tags"),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("create entries indexes: %w", err)
 	}
 	return nil
 }
