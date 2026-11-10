@@ -195,3 +195,9 @@ func (s *Store) DeleteEntry(ctx context.Context, ownerID, id string, now time.Ti
 	}
 	return nil
 }
+
+// NewID returns a fresh entry ID. The service makes IDs up front, so the S3 body key
+// (users/{userId}/entries/{entryId}.json) is known before the entry is saved.
+func NewID() string {
+	return bson.NewObjectID().Hex()
+}
