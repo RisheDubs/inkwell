@@ -9,6 +9,8 @@ const (
 	testMongoURI   = "mongodb://localhost:27017"
 	testUserPoolID = "ap-southeast-2_AbC123xyZ"
 	testClientID   = "testclientid123"
+	testBucket     = "inkwell-dev-content-123456789012"
+	testKeyARN     = "arn:aws:kms:ap-southeast-2:123456789012:key/11111111-2222-3333-4444-555555555555"
 )
 
 // setValidEnv sets every required variable, so each test only changes what it is testing.
@@ -20,6 +22,9 @@ func setValidEnv(t *testing.T) {
 	t.Setenv("MONGODB_DATABASE", "")
 	t.Setenv("COGNITO_USER_POOL_ID", testUserPoolID)
 	t.Setenv("COGNITO_CLIENT_ID", testClientID)
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("S3_CONTENT_BUCKET", testBucket)
+	t.Setenv("KMS_KEY_ARN", testKeyARN)
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -150,6 +155,55 @@ func TestLoadRejectsInvalidCognito(t *testing.T) {
 
 			if _, err := Load(); err == nil {
 				t.Error("Load(): expected an error, got nil")
+			}
+		})
+	}
+}
+
+func TestLoadContent(t *testing.T) {
+	setValidEnv(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	// AWS_REGION is empty, so the region falls back to the user pool's.
+	want := ContentConfig{Region: "ap-southeast-2", Bucket: testBucket, KMSKeyARN: testKeyARN}
+	if cfg.Content != want {
+		t.Errorf("Content = %+v, want %+v", cfg.Content, want)
+	}
+}
+
+func TestLoadContentRegionOverride(t *testing.T) {
+	setValidEnv(t)
+	t.Setenv("AWS_REGION", "ap-southeast-4")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Content.Region != "ap-southeast-4" {
+		t.Errorf("Content.Region = %q, want %q", cfg.Content.Region, "ap-southeast-4")
+	}
+}
+
+func TestLoadRejectsBadContentSettings(t *testing.T) {
+	tests := []struct{ key, value string }{
+		{"S3_CONTENT_BUCKET", ""},
+		{"S3_CONTENT_BUCKET", "Not_A_Bucket"},
+		{"S3_CONTENT_BUCKET", "ab"},
+		{"KMS_KEY_ARN", ""},
+		{"KMS_KEY_ARN", "alias/inkwell-dev-content"},
+		{"KMS_KEY_ARN", "1234abcd-12ab-34cd-56ef-1234567890ab"}, // gitleaks:allow (fake bare key ID; Load must reject it)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.key+"="+tc.value, func(t *testing.T) {
+			setValidEnv(t)
+			t.Setenv(tc.key, tc.value)
+
+			if _, err := Load(); err == nil {
+				t.Errorf("Load() with %s=%q: expected an error, got nil", tc.key, tc.value)
 			}
 		})
 	}

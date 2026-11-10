@@ -9,6 +9,10 @@ API_DIR := apps/api
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-16s %s\n", $$1, $$2}'
 
+creds: ## Write 1-hour AWS credentials for the API container (role inkwell-dev-api)
+	@umask 077 && aws configure export-credentials --profile inkwell-api --format env-no-export > .aws-session.env
+	@echo "Wrote .aws-session.env (valid for 1 hour). Now run: make up"
+
 up: ## Build and start the whole stack in the background
 	docker compose up -d --build
 

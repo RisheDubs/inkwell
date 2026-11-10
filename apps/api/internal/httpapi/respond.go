@@ -56,10 +56,15 @@ func logError(r *http.Request, msg string, err error) {
 	slog.Error(msg, "err", err, "request_id", middleware.GetReqID(r.Context()))
 }
 
-// decodeJSON reads exactly one JSON object into dst, rejecting unknown fields and oversized bodies.
+// decodeJSON reads exactly one JSON object into dst, rejecting unknown fields and bodies over 4 KB.
 // The returned error's message is safe to show the client.
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	return decodeJSONLimit(w, r, dst, maxBodyBytes)
+}
+
+// decodeJSONLimit is decodeJSON with a custom size limit, for the few routes that need more.
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) error {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 
@@ -67,7 +72,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 		var tooBig *http.MaxBytesError
 		switch {
 		case errors.As(err, &tooBig):
-			return fmt.Errorf("request body must be %d bytes or smaller", maxBodyBytes)
+			return fmt.Errorf("request body must be %d bytes or smaller", limit)
 		case errors.Is(err, io.EOF):
 			return errors.New("request body must not be empty")
 		default:

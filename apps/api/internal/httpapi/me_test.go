@@ -58,6 +58,7 @@ type testDeps struct {
 	ping     error
 	me       *fakeMe
 	journals *fakeJournals
+	entries  *fakeEntries
 }
 
 func newTestRouter(t *testing.T, d testDeps) http.Handler {
@@ -68,7 +69,10 @@ func newTestRouter(t *testing.T, d testDeps) http.Handler {
 	if d.journals == nil {
 		d.journals = &fakeJournals{}
 	}
-	return NewRouter(Deps{DB: fakePinger{err: d.ping}, Verifier: fakeVerifier{}, Me: d.me, Journals: d.journals})
+	if d.entries == nil {
+		d.entries = &fakeEntries{}
+	}
+	return NewRouter(Deps{DB: fakePinger{err: d.ping}, Verifier: fakeVerifier{}, Me: d.me, Journals: d.journals, Entries: d.entries})
 }
 
 func do(t *testing.T, h http.Handler, method, path, token, body string) *httptest.ResponseRecorder {
