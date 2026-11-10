@@ -194,7 +194,7 @@ func TestLoadRejectsBadContentSettings(t *testing.T) {
 		{"S3_CONTENT_BUCKET", "ab"},
 		{"KMS_KEY_ARN", ""},
 		{"KMS_KEY_ARN", "alias/inkwell-dev-content"},
-		{"KMS_KEY_ARN", "1234abcd-12ab-34cd-56ef-1234567890ab"},
+		{"KMS_KEY_ARN", "1234abcd-12ab-34cd-56ef-1234567890ab"}, // gitleaks:allow (fake bare key ID; Load must reject it)
 	}
 
 	for _, tc := range tests {
