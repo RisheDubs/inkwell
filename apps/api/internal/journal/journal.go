@@ -37,7 +37,7 @@ type Theme struct {
 	CoverKey string `bson:"coverKey,omitempty" json:"coverKey,omitempty"`
 }
 
-// Journal is a user's notebook. MongoDB assigns its _id.
+// Journal is a user's notebook. MongoDB assigns its _id; the store fills in ID.
 type Journal struct {
 	ID         string    `bson:"-" json:"id"`
 	OwnerID    string    `bson:"ownerId" json:"ownerId"`
@@ -109,7 +109,7 @@ func (s *Service) Me(ctx context.Context, userID, accessToken string) (User, err
 		return User{}, fmt.Errorf("look up email: %w", err)
 	}
 
-	now := s.now().UTC()
+	now := storedTime(s.now())
 	name := defaultDisplayName(email)
 
 	// Journal first, then user: if anything fails in between, the next call retries both,
@@ -131,6 +131,12 @@ func (s *Service) UpdateMe(ctx context.Context, userID string, in UpdateMeInput)
 		return User{}, err
 	}
 	return s.repo.UpdateUser(ctx, userID, clean)
+}
+
+// storedTime is t as MongoDB stores it: UTC, to the millisecond. Using it for every timestamp
+// means a value in a create response matches the same value read back later.
+func storedTime(t time.Time) time.Time {
+	return t.UTC().Truncate(time.Millisecond)
 }
 
 // NewJournal returns a user's first journal with the default theme.

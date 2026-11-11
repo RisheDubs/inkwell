@@ -59,6 +59,7 @@ type testDeps struct {
 	me       *fakeMe
 	journals *fakeJournals
 	entries  *fakeEntries
+	media    *fakeMedia
 }
 
 func newTestRouter(t *testing.T, d testDeps) http.Handler {
@@ -72,7 +73,17 @@ func newTestRouter(t *testing.T, d testDeps) http.Handler {
 	if d.entries == nil {
 		d.entries = &fakeEntries{}
 	}
-	return NewRouter(Deps{DB: fakePinger{err: d.ping}, Verifier: fakeVerifier{}, Me: d.me, Journals: d.journals, Entries: d.entries})
+	if d.media == nil {
+		d.media = &fakeMedia{}
+	}
+	return NewRouter(Deps{
+		DB:       fakePinger{err: d.ping},
+		Verifier: fakeVerifier{},
+		Me:       d.me,
+		Journals: d.journals,
+		Entries:  d.entries,
+		Media:    d.media,
+	})
 }
 
 func do(t *testing.T, h http.Handler, method, path, token, body string) *httptest.ResponseRecorder {

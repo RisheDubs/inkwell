@@ -380,3 +380,19 @@ func deepDoc(depth int) json.RawMessage {
 		strings.Repeat(`{"type":"blockquote","content":[`, depth) +
 		strings.Repeat(`]}`, depth) + `]}`)
 }
+
+func TestCreateEntryStoresMillisecondTimestamps(t *testing.T) {
+	_, repo, bodies := newFakes()
+	svc := newTestEntryService(repo, fakeJournalFinder{}, bodies)
+	svc.now = func() time.Time { return time.Date(2026, 11, 10, 9, 0, 0, 123456789, time.UTC) }
+
+	got, err := svc.CreateEntry(context.Background(), "user-1", validCreateInput())
+	if err != nil {
+		t.Fatalf("CreateEntry() error = %v", err)
+	}
+	// MongoDB keeps milliseconds only, so the response must not promise more.
+	want := time.Date(2026, 11, 10, 9, 0, 0, 123000000, time.UTC)
+	if !got.CreatedAt.Equal(want) || !repo.created.CreatedAt.Equal(want) {
+		t.Errorf("CreatedAt = %v (stored %v), want %v", got.CreatedAt, repo.created.CreatedAt, want)
+	}
+}

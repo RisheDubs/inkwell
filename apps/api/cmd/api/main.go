@@ -11,15 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	awsconfig "github.com/aws/aws-sdk-go-v2/config" // 3B
-	awss3 "github.com/aws/aws-sdk-go-v2/service/s3" // 3B
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/RisheDubs/inkwell/apps/api/internal/auth"
 	"github.com/RisheDubs/inkwell/apps/api/internal/config"
 	"github.com/RisheDubs/inkwell/apps/api/internal/httpapi"
 	"github.com/RisheDubs/inkwell/apps/api/internal/journal"
 	mongostore "github.com/RisheDubs/inkwell/apps/api/internal/store/mongo"
-	s3store "github.com/RisheDubs/inkwell/apps/api/internal/store/s3" // 3B
+	s3store "github.com/RisheDubs/inkwell/apps/api/internal/store/s3"
 )
 
 func main() {
@@ -58,7 +58,7 @@ func main() {
 
 	svc := journal.NewService(store, auth.NewUserInfoClient(cfg.Cognito.Endpoint()))
 
-	// 3B: AWS credentials come from the environment: one-hour role credentials locally
+	// AWS credentials come from the environment: one-hour role credentials locally
 	// (make creds), the ECS task role in production. The code is the same either way.
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.Content.Region))
 	if err != nil {
@@ -66,8 +66,13 @@ func main() {
 		_ = store.Close(context.Background())
 		os.Exit(1)
 	}
-	bodies := s3store.NewBodies(awss3.NewFromConfig(awsCfg), cfg.Content.Bucket, cfg.Content.KMSKeyARN)
+	s3Client := awss3.NewFromConfig(awsCfg)
+	bodies := s3store.NewBodies(s3Client, cfg.Content.Bucket, cfg.Content.KMSKeyARN)
 	entries := journal.NewEntryService(store, store, bodies, mongostore.NewID)
+
+	// Image links are signed locally with the same credentials; nothing calls AWS until a client uses one.
+	presigner := s3store.NewPresigner(awss3.NewPresignClient(s3Client), cfg.Content.Bucket)
+	media := journal.NewMediaService(presigner, mongostore.NewID)
 
 	// Open the port first, so "listening" is only logged once it is true.
 	ln, err := net.Listen("tcp", ":"+cfg.Port)
@@ -78,7 +83,14 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Handler:           httpapi.NewRouter(httpapi.Deps{DB: store, Verifier: verifier, Me: svc, Journals: svc, Entries: entries}),
+		Handler: httpapi.NewRouter(httpapi.Deps{
+			DB:       store,
+			Verifier: verifier,
+			Me:       svc,
+			Journals: svc,
+			Entries:  entries,
+			Media:    media,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -90,7 +102,7 @@ func main() {
 		"addr", ln.Addr().String(),
 		"log_level", cfg.LogLevel.String(),
 		"user_pool", cfg.Cognito.UserPoolID,
-		"bucket", cfg.Content.Bucket, // 3B
+		"bucket", cfg.Content.Bucket,
 	)
 
 	// Wait for either a server failure or a shutdown signal.

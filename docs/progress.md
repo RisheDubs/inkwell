@@ -28,4 +28,32 @@
 
 **Open questions:** Rate-limit auth-heavy routes (Phase 7/8). Turn off `ALLOW_USER_PASSWORD_AUTH` (Phase 5).
 
-**Next step:** Phase 3, journal core + S3: entries in MongoDB, bodies in S3 with KMS encryption, presigned image uploads, and a test proving user A can't read user B's entries.
+## Phase 3: Journal, entries, S3 and KMS (9 to 11 Nov 2026)
+
+### What we built
+- 3A: GET/PATCH /api/journal (theme allow-lists, dot-notation updates); entry repository with
+  cursor pagination (newest first), tag filter, soft delete and owner-scoped queries.
+- 3B: KMS customer-managed key, private S3 bucket (Block Public Access, TLS-only policy, SSE-KMS +
+  Bucket Key) and a least-privilege role inkwell-dev-api; /api/entries CRUD with Tiptap bodies in S3;
+  server-computed excerpt and word count; local API runs on 1-hour role credentials (ADR-0003).
+- 3C: presigned POST image uploads (5 min, jpeg/png/webp/gif, 5 MB enforced by S3, server-built keys)
+  and 15-minute download links (ADR-0004); two-user HTTP isolation tests in CI; timestamps stored and
+  returned to the millisecond.
+
+### Measured
+- Image 17.8 MB (13 MB before the AWS SDK).
+- Coverage: config 100%, store/s3 <...>%, httpapi <...>%, journal <...>%, auth 84.8%.
+- IAM probes as the role: 1 allowed, 3 denied (write outside users/, list bucket, direct KMS), object
+  encrypted with our key.
+- End to end against real AWS: 10 entry checks and 10 upload checks passed.
+
+### What I learned
+- Explicit deny beats allow, and allow beats implicit deny; a TLS-only bucket policy blocks even admins.
+- Without s3:ListBucket, a missing object is a 403, not a 404.
+- A presigned PUT can't enforce a size limit; a presigned POST policy can.
+- Docker Compose takes a variable from the shell before .env, so load .env in a subshell.
+- Rotate a credential on the server first, then in the config; health checks notice first.
+- A secret leaks the moment it's in a terminal, screenshot, chat or log, not only on GitHub.
+
+### Next step
+Phase 4: React + Vite + Tiptap frontend with Amplify sign-in.
