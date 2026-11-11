@@ -240,3 +240,34 @@ func TestDeleteEntry(t *testing.T) {
 		t.Errorf("missing entry: status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
+
+func TestEntryRoutesHideInternalErrors(t *testing.T) {
+	cause := errors.New("mongo: connection refused at 10.0.3.7:27017")
+	for _, rt := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/entries", ""},
+		{http.MethodGet, "/api/entries/e1", ""},
+		{http.MethodPatch, "/api/entries/e1", `{"mood":"calm"}`},
+		{http.MethodDelete, "/api/entries/e1", ""},
+	} {
+		rec := do(t, newTestRouter(t, testDeps{entries: &fakeEntries{err: cause}}), rt.method, rt.path, goodToken, rt.body)
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("%s %s status = %d, want %d", rt.method, rt.path, rec.Code, http.StatusInternalServerError)
+		}
+		if strings.Contains(rec.Body.String(), "10.0.3.7") {
+			t.Errorf("%s %s leaks the internal error: %s", rt.method, rt.path, rec.Body)
+		}
+	}
+}
+
+func TestEntryRoutesMapValidationErrors(t *testing.T) {
+	verr := &journal.ValidationError{Field: "tag", Message: "bad"}
+	for _, rt := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/entries?tag=x", ""},
+		{http.MethodPatch, "/api/entries/e1", `{"mood":"calm"}`},
+	} {
+		rec := do(t, newTestRouter(t, testDeps{entries: &fakeEntries{err: verr}}), rt.method, rt.path, goodToken, rt.body)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s %s status = %d, want %d", rt.method, rt.path, rec.Code, http.StatusBadRequest)
+		}
+	}
+}

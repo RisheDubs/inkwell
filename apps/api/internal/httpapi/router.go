@@ -44,6 +44,12 @@ type EntryService interface {
 	DeleteEntry(ctx context.Context, ownerID, id string) error
 }
 
+// MediaService hands out short-lived upload and download links for the signed-in user's images.
+type MediaService interface {
+	CreateUpload(ctx context.Context, ownerID string, in journal.UploadRequest) (journal.Upload, error)
+	DownloadURL(ctx context.Context, ownerID, mediaID string) (journal.MediaURL, error)
+}
+
 // Deps are everything the router needs. Tests pass fakes.
 type Deps struct {
 	DB       Pinger
@@ -51,6 +57,7 @@ type Deps struct {
 	Me       MeService
 	Journals JournalService
 	Entries  EntryService
+	Media    MediaService
 }
 
 // NewRouter builds the HTTP router with every route registered.
@@ -80,6 +87,9 @@ func NewRouter(d Deps) http.Handler {
 		r.Get("/entries/{id}", getEntry(d.Entries))
 		r.Patch("/entries/{id}", patchEntry(d.Entries))
 		r.Delete("/entries/{id}", deleteEntry(d.Entries))
+
+		r.Post("/media/uploads", createUpload(d.Media))
+		r.Get("/media/{mediaID}", getMediaURL(d.Media))
 	})
 
 	return r
