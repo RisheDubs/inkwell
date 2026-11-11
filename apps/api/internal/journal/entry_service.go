@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	maxEntryTitleRunes = 200
-	maxTags       = 20
+	maxEntryTitleRunes = 200 // journals.go already has maxTitleRunes for the journal's title
+	maxTags            = 20
 )
 
 var (
@@ -78,7 +78,7 @@ func NewEntryService(entries EntryRepository, journals JournalFinder, bodies Bod
 
 // CreateEntry validates in, stores the body in S3, then the metadata in MongoDB.
 func (s *EntryService) CreateEntry(ctx context.Context, ownerID string, in CreateEntryInput) (EntryWithBody, error) {
-	now := s.now().UTC()
+	now := storedTime(s.now())
 
 	title, err := cleanTitle(in.Title)
 	if err != nil {
@@ -167,7 +167,7 @@ func (s *EntryService) ListEntries(ctx context.Context, ownerID string, in ListI
 
 // UpdateEntry changes an entry's metadata and, if given, its body.
 func (s *EntryService) UpdateEntry(ctx context.Context, ownerID, id string, in UpdateEntryInput) (EntryWithBody, error) {
-	now := s.now().UTC()
+	now := storedTime(s.now())
 	upd, text, err := validateEntryUpdate(in, now)
 	if err != nil {
 		return EntryWithBody{}, err
@@ -205,7 +205,7 @@ func (s *EntryService) UpdateEntry(ctx context.Context, ownerID, id string, in U
 
 // DeleteEntry soft-deletes the owner's entry. The body stays in S3 until a purge job (later phase).
 func (s *EntryService) DeleteEntry(ctx context.Context, ownerID, id string) error {
-	return s.entries.DeleteEntry(ctx, ownerID, id, s.now().UTC())
+	return s.entries.DeleteEntry(ctx, ownerID, id, storedTime(s.now()))
 }
 
 // validateEntryUpdate checks PATCH input and returns the metadata update plus the body's text.
