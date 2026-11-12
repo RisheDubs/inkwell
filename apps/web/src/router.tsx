@@ -1,5 +1,6 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import Layout from './components/Layout'
+import RequireAuth from './components/RequireAuth'
 import ConfirmSignUp from './pages/ConfirmSignUp'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
@@ -11,7 +12,9 @@ export const routes: RouteObject[] = [
   {
     element: <Layout />,
     children: [
-      { path: '/', element: <Home /> },
+      // Signed-in only: everything inside RequireAuth.
+      { element: <RequireAuth />, children: [{ path: '/', element: <Home /> }] },
+      // Public pages.
       { path: '/signin', element: <SignIn /> },
       { path: '/signup', element: <SignUp /> },
       { path: '/confirm', element: <ConfirmSignUp /> },

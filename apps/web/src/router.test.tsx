@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { isSignedIn } from './lib/auth'
 import { routes } from './router'
+
+vi.mock('./lib/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./lib/auth')>()),
+  isSignedIn: vi.fn(),
+}))
 
 // A memory router keeps the URL in memory, so tests can start on any path without a browser.
 function renderAt(path: string) {
@@ -9,14 +15,25 @@ function renderAt(path: string) {
 }
 
 describe('routes', () => {
+  beforeEach(() => {
+    vi.mocked(isSignedIn).mockResolvedValue(true)
+  })
+
   it.each([
     ['/', 'Your journal'],
     ['/signin', 'Sign in'],
     ['/signup', 'Create your account'],
     ['/confirm', 'Confirm your email'],
     ['/no-such-page', 'Page not found'],
-  ])('%s shows "%s"', (path, heading) => {
+  ])('%s shows "%s"', async (path, heading) => {
     renderAt(path)
-    expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+    // findBy waits: the guard on "/" answers asynchronously.
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+  })
+
+  it('sends a signed-out visitor from the journal to sign-in', async () => {
+    vi.mocked(isSignedIn).mockResolvedValue(false)
+    renderAt('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument()
   })
 })
