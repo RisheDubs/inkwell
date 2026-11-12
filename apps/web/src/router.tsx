@@ -1,5 +1,6 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import Layout from './components/Layout'
+import ConfirmSignUp from './pages/ConfirmSignUp'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import SignIn from './pages/SignIn'
@@ -13,6 +14,7 @@ export const routes: RouteObject[] = [
       { path: '/', element: <Home /> },
       { path: '/signin', element: <SignIn /> },
       { path: '/signup', element: <SignUp /> },
+      { path: '/confirm', element: <ConfirmSignUp /> },
       { path: '*', element: <NotFound /> }, // anything else
     ],
   },

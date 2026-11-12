@@ -13,6 +13,7 @@ describe('routes', () => {
     ['/', 'Your journal'],
     ['/signin', 'Sign in'],
     ['/signup', 'Create your account'],
+    ['/confirm', 'Confirm your email'],
     ['/no-such-page', 'Page not found'],
   ])('%s shows "%s"', (path, heading) => {
     renderAt(path)
