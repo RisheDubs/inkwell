@@ -24,6 +24,7 @@ describe('routes', () => {
     ['/signin', 'Sign in'],
     ['/signup', 'Create your account'],
     ['/confirm', 'Confirm your email'],
+    ['/reset-password', 'Reset your password'],
     ['/no-such-page', 'Page not found'],
   ])('%s shows "%s"', async (path, heading) => {
     renderAt(path)

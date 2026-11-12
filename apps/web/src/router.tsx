@@ -4,6 +4,7 @@ import RequireAuth from './components/RequireAuth'
 import ConfirmSignUp from './pages/ConfirmSignUp'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
+import ResetPassword from './pages/ResetPassword'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 
@@ -18,6 +19,7 @@ export const routes: RouteObject[] = [
       { path: '/signin', element: <SignIn /> },
       { path: '/signup', element: <SignUp /> },
       { path: '/confirm', element: <ConfirmSignUp /> },
+      { path: '/reset-password', element: <ResetPassword /> },
       { path: '*', element: <NotFound /> }, // anything else
     ],
   },
