@@ -55,5 +55,31 @@
 - Rotate a credential on the server first, then in the config; health checks notice first.
 - A secret leaks the moment it's in a terminal, screenshot, chat or log, not only on GitHub.
 
-### Next step
-Phase 4: React + Vite + Tiptap frontend with Amplify sign-in.
+## 2026-11-12 · Phase 4, session 1 (steps 1-11 of 24)
+
+**Built** (branch `feat/phase-4-frontend`, 9 commits, latest `4856b17`)
+- ADR-0005 same-origin API (Vite proxy now, CloudFront later), ADR-0006 Vite dev container, ADR-0007 functional UI first.
+- `apps/web`: Vite + React + TypeScript, Tailwind v4, Vitest + Testing Library + ESLint, validated Cognito config, Amplify Auth.
+- React Router with a shared layout; sign-up + email confirmation, sign-in + sign-out, `RequireAuth` route guard, password reset. All checked in the browser against real Cognito.
+
+**Measured**
+- `npm install`: 160 packages in 57s. `npm audit --omit=dev`: 0 vulnerabilities (10 moderate, dev-only, minimatch).
+- Production build 223 ms. CSS 6.82 kB (2.07 kB gzip). JS 219.75 kB (68.70 kB gzip) before Amplify, 281.39 kB (88.79 kB gzip) after.
+- Frontend tests: 47 in 11 files, 4.30s; lint and type check clean.
+
+**Learned**
+- Same origin vs CORS; CORS is a browser rule, not auth.
+- `VITE_` variables ship to every visitor, so only identifiers go there, never secrets.
+- SRP keeps the password in the browser; the API only accepts access tokens, never ID tokens.
+- A route guard is UX only; the API's token check is the security.
+- Open redirects (only same-app return paths) and user enumeration (same message for real and unknown emails).
+- Tokens live in localStorage, so XSS would mean stolen sessions (matters for the editor and the CSP).
+- Debugging story: a test failed after its last line ran. Logging inside the test and the JSON report's stack showed `beforeEach(() => mock.mockReset())` was returning the mock, which Vitest ran as cleanup. Fix: braces, so `beforeEach` returns nothing.
+- Run commands from the right folder: npm in `apps/web`, git/make at the repo root.
+
+**Open questions**
+- `943026b` and `f0873a4` reached `main` without a PR number, but `protect-main` has an empty bypass list. Check at close-out.
+- Phase 5: CloudFront `/api/*` behaviour, SPA fallback to `index.html`, CloudFront domain in bucket CORS, remove `ALLOW_USER_PASSWORD_AUTH` and `ALLOW_USER_AUTH`.
+- Step 17: public images need a route that finds the owner from the handle.
+
+**Next step**: step 12, the API client (`src/lib/api.ts`).
