@@ -30,9 +30,9 @@ docs/         Architecture decision records (ADRs) and progress log
 ## Roadmap
 
 - [x] Phase 0: Tooling, accounts and repository setup
-- [ ] Phase 1: API skeleton + MongoDB in Docker
-- [ ] Phase 2: Authentication with Cognito
-- [ ] Phase 3: Journal core + S3
+- [x] Phase 1: API skeleton + MongoDB in Docker
+- [x] Phase 2: Authentication with Cognito
+- [x] Phase 3: Journal core + S3
 - [ ] Phase 4: Frontend + customisation
 - [ ] Phase 5: AWS infrastructure with Terraform
 - [ ] Phase 6: CI/CD
