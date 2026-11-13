@@ -33,7 +33,7 @@ docs/         Architecture decision records (ADRs) and progress log
 - [x] Phase 1: API skeleton + MongoDB in Docker
 - [x] Phase 2: Authentication with Cognito
 - [x] Phase 3: Journal core + S3
-- [ ] Phase 4: Frontend + customisation
+- [x] Phase 4: Frontend + customisation
 - [ ] Phase 5: AWS infrastructure with Terraform
 - [ ] Phase 6: CI/CD
 - [ ] Phase 7: AI features
