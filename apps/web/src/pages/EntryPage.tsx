@@ -8,6 +8,7 @@ import {
   MAX_TITLE_LENGTH,
   MOODS,
   createEntry,
+  deleteEntry,
   getEntry,
   updateEntry,
   type EntryInput,
@@ -55,12 +56,15 @@ function EntryForm({ id }: { id?: string }) {
   const [body, setBody] = useState<TiptapDoc | undefined>() // only set once the user edits the body
   const [bodyLocked, setBodyLocked] = useState(false)
   const lockBody = useCallback(() => setBodyLocked(true), []) // stable, so Editor's effect runs once
-  const [status, setStatus] = useState<'loading' | 'ready' | 'saving' | 'not-found'>(isNew ? 'ready' : 'loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'saving' | 'deleting' | 'not-found'>(
+    isNew ? 'ready' : 'loading',
+  )
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState(justCreated ? 'Entry created.' : '')
 
   const handleError = useCallback(
-    (err: unknown, action: 'load' | 'save') => {
+    (err: unknown, action: 'load' | 'save' | 'delete') => {
       if (err instanceof ApiError && err.status === 401) {
         navigate('/signin', { replace: true, state: { from: location.pathname } })
         return
@@ -128,6 +132,21 @@ function EntryForm({ id }: { id?: string }) {
       setStatus('ready')
     } catch (err) {
       handleError(err, 'save')
+    }
+  }
+
+  async function handleDelete() {
+    if (saved === null) return
+    setError('')
+    setNotice('')
+    setStatus('deleting')
+    try {
+      await deleteEntry(saved.id)
+      // replace: Back must not return to the page of an entry that no longer exists.
+      navigate('/', { replace: true })
+    } catch (err) {
+      setConfirmingDelete(false)
+      handleError(err, 'delete')
     }
   }
 
@@ -227,12 +246,40 @@ function EntryForm({ id }: { id?: string }) {
 
         <button
           type="submit"
-          disabled={status === 'saving'}
+          disabled={status === 'saving' || status === 'deleting'}
           className="rounded bg-stone-900 px-4 py-2 text-white disabled:opacity-50"
         >
           {status === 'saving' ? 'Saving…' : isNew ? 'Create entry' : 'Save changes'}
         </button>
       </form>
+
+      {/* Outside the form, so these buttons can never submit it. */}
+      {saved && (
+        <div className="mt-8 border-t border-stone-200 pt-4">
+          {confirmingDelete ? (
+            <div role="group" aria-label="Confirm delete" className="space-y-2">
+              <p className="text-sm">Delete “{saved.title}”? It will disappear from your journal.</p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  disabled={status === 'deleting'}
+                  className="rounded bg-red-700 px-4 py-2 text-sm text-white disabled:opacity-50"
+                >
+                  {status === 'deleting' ? 'Deleting…' : 'Yes, delete'}
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-sm underline">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingDelete(true)} className="text-sm text-red-700 underline">
+              Delete entry
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

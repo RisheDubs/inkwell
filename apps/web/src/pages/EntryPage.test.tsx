@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../lib/api'
 import { todayLocal } from '../lib/dates'
-import { createEntry, getEntry, updateEntry, type EntryWithBody } from '../lib/entries'
+import { createEntry, deleteEntry, getEntry, updateEntry, type EntryWithBody } from '../lib/entries'
 import EntryPage from './EntryPage'
 
 // Fake the API calls; keep the real MOODS, limits and normaliseTag.
@@ -13,6 +13,7 @@ vi.mock('../lib/entries', async (importOriginal) => ({
   getEntry: vi.fn(),
   createEntry: vi.fn(),
   updateEntry: vi.fn(),
+  deleteEntry: vi.fn(),
 }))
 
 const doc = (text: string) => ({
@@ -53,6 +54,7 @@ describe('EntryPage', () => {
     vi.mocked(getEntry).mockReset()
     vi.mocked(createEntry).mockReset()
     vi.mocked(updateEntry).mockReset()
+    vi.mocked(deleteEntry).mockReset()
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -157,5 +159,53 @@ describe('EntryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     expect(updateEntry).toHaveBeenCalledWith('e1', { title: 'Kept safe' })
+  })
+
+  it('offers no delete button for an entry that does not exist yet', () => {
+    renderAt('/entries/new')
+    expect(screen.queryByRole('button', { name: 'Delete entry' })).not.toBeInTheDocument()
+  })
+
+  it('asks before deleting, and does nothing on Cancel', async () => {
+    vi.mocked(getEntry).mockResolvedValue(stored())
+    const user = userEvent.setup()
+    renderAt('/entries/e1')
+
+    await user.click(await screen.findByRole('button', { name: 'Delete entry' }))
+    expect(screen.getByRole('group', { name: 'Confirm delete' })).toHaveTextContent('Delete “First day”?')
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(deleteEntry).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Delete entry' })).toBeInTheDocument()
+  })
+
+  it('deletes after confirmation and goes back to the timeline', async () => {
+    vi.mocked(getEntry).mockResolvedValue(stored())
+    vi.mocked(deleteEntry).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderAt('/entries/e1')
+
+    await user.click(await screen.findByRole('button', { name: 'Delete entry' }))
+    await user.click(screen.getByRole('button', { name: 'Yes, delete' }))
+
+    expect(deleteEntry).toHaveBeenCalledWith('e1')
+    expect(await screen.findByText('timeline')).toBeInTheDocument()
+  })
+
+  it('stays on the entry and explains when the delete fails', async () => {
+    vi.mocked(getEntry).mockResolvedValue(stored())
+    vi.mocked(deleteEntry).mockImplementation(async () => {
+      throw new ApiError(500, 'internal', 'boom', 'req-9')
+    })
+    const user = userEvent.setup()
+    renderAt('/entries/e1')
+
+    await user.click(await screen.findByRole('button', { name: 'Delete entry' }))
+    await user.click(screen.getByRole('button', { name: 'Yes, delete' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't delete this entry. Please try again. (reference: req-9)",
+    )
+    expect(screen.getByRole('heading', { name: 'Edit entry' })).toBeInTheDocument()
   })
 })
