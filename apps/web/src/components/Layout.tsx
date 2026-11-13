@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { isSignedIn, signOutUser } from '../lib/auth'
+import { clearImageUrlCache } from '../lib/media'
 
 // Shared frame for every page: header with nav, then the current page in <Outlet />.
 export default function Layout() {
@@ -26,6 +27,7 @@ export default function Layout() {
     } catch {
       // Even if Cognito can't be reached, still send the user back to sign-in.
     }
+    clearImageUrlCache() // image links are signed for this user; the next person must not get them
     setSignedIn(false)
     navigate('/signin', { replace: true })
   }

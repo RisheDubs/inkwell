@@ -3,9 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isSignedIn, signOutUser } from '../lib/auth'
+import { clearImageUrlCache } from '../lib/media'
 import Layout from './Layout'
 
 vi.mock('../lib/auth', () => ({ isSignedIn: vi.fn(), signOutUser: vi.fn() }))
+vi.mock('../lib/media', () => ({ clearImageUrlCache: vi.fn() }))
 
 function renderLayout() {
   const router = createMemoryRouter(
@@ -27,6 +29,7 @@ describe('Layout', () => {
   beforeEach(() => {
     vi.mocked(isSignedIn).mockReset()
     vi.mocked(signOutUser).mockReset()
+    vi.mocked(clearImageUrlCache).mockReset()
   })
 
   it('offers sign in and sign up to a signed-out visitor', async () => {
@@ -38,7 +41,7 @@ describe('Layout', () => {
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
   })
 
-  it('signs a signed-in user out and returns them to sign-in', async () => {
+  it('signs a signed-in user out, forgets their image links, and returns them to sign-in', async () => {
     vi.mocked(isSignedIn).mockResolvedValue(true)
     // Like the real thing: once signed out, the session check says "no".
     vi.mocked(signOutUser).mockImplementation(async () => {
@@ -50,6 +53,7 @@ describe('Layout', () => {
     await user.click(await screen.findByRole('button', { name: 'Sign out' }))
 
     expect(signOutUser).toHaveBeenCalledOnce()
+    expect(clearImageUrlCache).toHaveBeenCalledOnce()
     expect(await screen.findByText('sign in page')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument()
   })

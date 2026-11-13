@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import {
   EditorContent,
   useEditor,
@@ -8,6 +8,8 @@ import {
 } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import type { TiptapDoc } from '../lib/entries'
+import { IMAGE_TYPES, UploadError, uploadImage } from '../lib/media'
+import { MediaImage } from './mediaImage'
 
 const EMPTY_DOC: TiptapDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
 
@@ -18,6 +20,55 @@ type Props = {
   // The stored body has content this editor can't show (an unknown node type). The editor
   // locks itself so a save can never overwrite the real body with an empty one.
   onContentError?: () => void
+}
+
+// Toolbar button that uploads an image straight to S3, then inserts it at the cursor.
+function ImageButton({ editor, disabled }: { editor: TiptapEditor; disabled: boolean }) {
+  const input = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // so choosing the same file again still fires a change
+    if (!file) return
+    setError('')
+    setBusy(true)
+    try {
+      const mediaId = await uploadImage(file)
+      editor.chain().focus().insertContent({ type: 'mediaImage', attrs: { mediaId } }).run()
+    } catch (err) {
+      setError(err instanceof UploadError ? err.message : 'The upload failed. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={disabled || busy}
+        onClick={() => input.current?.click()}
+        className="rounded px-2 py-1 text-sm hover:bg-stone-100 disabled:opacity-50"
+      >
+        {busy ? 'Uploading…' : 'Image'}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept={IMAGE_TYPES.join(',')}
+        hidden
+        aria-label="Choose an image"
+        onChange={(e) => void handleFile(e)}
+      />
+      {error && (
+        <p role="alert" className="w-full px-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+    </>
+  )
 }
 
 function Toolbar({ editor }: { editor: TiptapEditor }) {
@@ -56,6 +107,7 @@ function Toolbar({ editor }: { editor: TiptapEditor }) {
           {b.label}
         </button>
       ))}
+      <ImageButton editor={editor} disabled={!active.editable} />
     </div>
   )
 }
@@ -74,6 +126,7 @@ export default function Editor({ label, initialContent, onChange, onContentError
         heading: { levels: [2, 3] }, // the page title is the only <h1>
         link: false, // links come later, with a safe-URL check
       }),
+      MediaImage, // images by media ID (step 15)
     ],
     content: (initialContent ?? EMPTY_DOC) as JSONContent,
     enableContentCheck: true, // report unknown content instead of silently dropping it
