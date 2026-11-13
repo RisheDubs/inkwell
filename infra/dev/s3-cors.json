@@ -1,0 +1,10 @@
+{
+  "CORSRules": [
+    {
+      "ID": "inkwell-web-dev",
+      "AllowedOrigins": ["http://localhost:5173"],
+      "AllowedMethods": ["POST"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
