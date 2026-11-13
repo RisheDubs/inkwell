@@ -6,12 +6,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JournalContext } from '../components/JournalFrame'
 import { ApiError } from '../lib/api'
 import { updateJournal, type Journal } from '../lib/journal'
+import { getImageUrl, UploadError, uploadImage } from '../lib/media'
 import Settings from './Settings'
 
 vi.mock('../lib/journal', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/journal')>()),
   updateJournal: vi.fn(),
 }))
+vi.mock('../lib/media', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/media')>()),
+  uploadImage: vi.fn(),
+  getImageUrl: vi.fn(),
+}))
+
+const COVER_ID = '6af4937db325014a79b03c88.png'
 
 const journal: Journal = {
   id: 'j1',
@@ -27,6 +35,7 @@ function FrameStub({ initial }: { initial: Journal | null }) {
   return (
     <>
       <p>frame font: {current?.theme.font ?? 'none'}</p>
+      <p>frame cover: {current?.theme.coverMediaId || 'none'}</p>
       <Outlet context={{ journal: current, setJournal: setCurrent } satisfies JournalContext} />
     </>
   )
@@ -43,6 +52,8 @@ function renderSettings(initial: Journal | null = journal) {
 describe('Settings', () => {
   beforeEach(() => {
     vi.mocked(updateJournal).mockReset()
+    vi.mocked(uploadImage).mockReset()
+    vi.mocked(getImageUrl).mockReset()
   })
 
   it('waits for the journal before showing the form', () => {
@@ -93,5 +104,48 @@ describe('Settings', () => {
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('title: must be at most 100 characters')
+  })
+
+  it('uploads a cover and saves it to the journal straight away', async () => {
+    vi.mocked(uploadImage).mockResolvedValue(COVER_ID)
+    vi.mocked(updateJournal).mockResolvedValue({ ...journal, theme: { ...journal.theme, coverMediaId: COVER_ID } })
+    vi.mocked(getImageUrl).mockResolvedValue('https://s3.example/cover')
+    const user = userEvent.setup()
+    renderSettings()
+
+    expect(screen.getByText('No cover yet.')).toBeInTheDocument()
+    const photo = new File([new Uint8Array(10)], 'cover.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText('Choose a cover image'), photo)
+
+    expect(uploadImage).toHaveBeenCalledWith(photo)
+    expect(updateJournal).toHaveBeenCalledWith({ theme: { coverMediaId: COVER_ID } })
+    expect(await screen.findByText(`frame cover: ${COVER_ID}`)).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Journal cover' })).toBeInTheDocument()
+  })
+
+  it('removes the cover', async () => {
+    vi.mocked(getImageUrl).mockResolvedValue('https://s3.example/cover')
+    vi.mocked(updateJournal).mockResolvedValue({ ...journal, theme: { ...journal.theme } })
+    const user = userEvent.setup()
+    renderSettings({ ...journal, theme: { ...journal.theme, coverMediaId: COVER_ID } })
+
+    await user.click(screen.getByRole('button', { name: 'Remove cover' }))
+
+    expect(updateJournal).toHaveBeenCalledWith({ theme: { coverMediaId: '' } })
+    expect(await screen.findByText('frame cover: none')).toBeInTheDocument()
+    expect(screen.getByText('No cover yet.')).toBeInTheDocument()
+  })
+
+  it('explains a failed cover upload and leaves the journal alone', async () => {
+    vi.mocked(uploadImage).mockImplementation(async () => {
+      throw new UploadError('Images must be 5 MB or smaller.')
+    })
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.upload(screen.getByLabelText('Choose a cover image'), new File(['x'], 'big.png', { type: 'image/png' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Images must be 5 MB or smaller.')
+    expect(updateJournal).not.toHaveBeenCalled()
   })
 })

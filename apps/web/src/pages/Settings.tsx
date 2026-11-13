@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router'
+import CoverImage from '../components/CoverImage'
 import type { JournalContext } from '../components/JournalFrame'
 import { ApiError } from '../lib/api'
 import {
@@ -12,6 +13,7 @@ import {
   type JournalChanges,
   type Paper,
 } from '../lib/journal'
+import { IMAGE_TYPES, UploadError, uploadImage } from '../lib/media'
 
 const inputClass = 'mt-1 w-full rounded border border-stone-300 p-2'
 
@@ -29,6 +31,88 @@ function changesBetween(saved: Form, current: Form): JournalChanges {
   if (current.accent !== saved.accent) theme.accent = current.accent
   if (Object.keys(theme).length > 0) changes.theme = theme
   return changes
+}
+
+// Upload, change or remove the journal's cover. Saves straight away, separately from the form.
+function CoverSettings({ journal, onSaved }: { journal: Journal; onSaved: (journal: Journal) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const cover = journal.theme.coverMediaId
+
+  async function run(action: () => Promise<void>) {
+    setError('')
+    setBusy(true)
+    try {
+      await action()
+    } catch (err) {
+      if (err instanceof UploadError || (err instanceof ApiError && err.status === 400)) {
+        setError(err.message)
+      } else {
+        setError("We couldn't update the cover. Please try again.")
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // '' removes the cover; anything else is the media ID of an upload. The API turns it into a key.
+  async function saveCover(coverMediaId: string) {
+    onSaved(await updateJournal({ theme: { coverMediaId } }))
+  }
+
+  function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // so choosing the same file again still fires a change
+    if (!file) return
+    void run(async () => saveCover(await uploadImage(file)))
+  }
+
+  return (
+    <section aria-labelledby="cover-heading" className="space-y-2">
+      <h2 id="cover-heading" className="text-sm font-semibold">
+        Cover
+      </h2>
+      {cover ? (
+        <CoverImage mediaId={cover} className="h-32" />
+      ) : (
+        <p className="text-sm text-stone-500">No cover yet.</p>
+      )}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => input.current?.click()}
+          className="rounded border border-stone-300 px-3 py-1.5 text-sm disabled:opacity-50"
+        >
+          {busy ? 'Saving…' : cover ? 'Change cover' : 'Upload cover'}
+        </button>
+        {cover && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void run(() => saveCover(''))}
+            className="text-sm underline disabled:opacity-50"
+          >
+            Remove cover
+          </button>
+        )}
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept={IMAGE_TYPES.join(',')}
+        hidden
+        aria-label="Choose a cover image"
+        onChange={handleFile}
+      />
+      {error && (
+        <p role="alert" className="text-sm text-red-700">
+          {error}
+        </p>
+      )}
+    </section>
+  )
 }
 
 export default function Settings() {
@@ -89,6 +173,10 @@ function SettingsForm({ journal, onSaved }: { journal: Journal; onSaved: (journa
         ← Your journal
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">Journal settings</h1>
+
+      <div className="mt-4">
+        <CoverSettings journal={journal} onSaved={onSaved} />
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-5">
         <label className="block">

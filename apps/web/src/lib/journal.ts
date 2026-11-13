@@ -9,10 +9,10 @@ export const MAX_JOURNAL_TITLE = 100
 
 export type Paper = (typeof PAPERS)[number]
 export type Font = (typeof FONTS)[number]
-export type Theme = { paper: Paper; font: Font; accent: string }
+export type Theme = { paper: Paper; font: Font; accent: string; coverMediaId?: string }
 
-// GET /api/journal. The response also carries ownerId and coverKey; the frontend has no use for
-// either, so the type leaves them out (the cover arrives in step 16c as a media ID).
+// GET /api/journal. The response also carries ownerId, which the frontend has no use for, so the
+// type leaves it out. The cover arrives as a media ID (never an S3 key, step 16c).
 export type Journal = {
   id: string
   title: string
@@ -21,7 +21,7 @@ export type Journal = {
   createdAt: string
 }
 
-// PATCH /api/journal: only the fields that changed.
+// PATCH /api/journal: only the fields that changed. theme.coverMediaId '' removes the cover.
 export type JournalChanges = {
   title?: string
   visibility?: 'private' | 'public'
