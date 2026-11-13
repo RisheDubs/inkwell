@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import EntryCard from '../components/EntryCard'
 import { ApiError } from '../lib/api'
 import { listEntries, type Entry } from '../lib/entries'
@@ -73,7 +73,12 @@ export default function Home() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Your journal</h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Your journal</h1>
+        <Link to="/entries/new" className="rounded bg-stone-900 px-3 py-1.5 text-sm text-white">
+          New entry
+        </Link>
+      </div>
 
       {tag && (
         <p className="mt-2 text-sm">

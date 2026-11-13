@@ -2,11 +2,16 @@ import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isSignedIn } from './lib/auth'
+import { listEntries } from './lib/entries'
 import { routes } from './router'
 
 vi.mock('./lib/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./lib/auth')>()),
   isSignedIn: vi.fn(),
+}))
+vi.mock('./lib/entries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./lib/entries')>()),
+  listEntries: vi.fn(),
 }))
 
 // A memory router keeps the URL in memory, so tests can start on any path without a browser.
@@ -17,10 +22,12 @@ function renderAt(path: string) {
 describe('routes', () => {
   beforeEach(() => {
     vi.mocked(isSignedIn).mockResolvedValue(true)
+    vi.mocked(listEntries).mockResolvedValue({ entries: [] })
   })
 
   it.each([
     ['/', 'Your journal'],
+    ['/entries/new', 'New entry'],
     ['/signin', 'Sign in'],
     ['/signup', 'Create your account'],
     ['/confirm', 'Confirm your email'],

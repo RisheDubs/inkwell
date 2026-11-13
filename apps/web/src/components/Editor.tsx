@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   EditorContent,
   useEditor,
@@ -62,6 +63,11 @@ function Toolbar({ editor }: { editor: TiptapEditor }) {
 // Rich-text editor. Stores and loads Tiptap JSON, never HTML: Tiptap rebuilds the document from
 // the node types it knows, so stored text can't become a <script> or an onerror= attribute.
 export default function Editor({ label, initialContent, onChange, onContentError }: Props) {
+  // Tiptap checks the content while this component is still rendering. Telling the parent right
+  // then would update the parent mid-render, which React forbids; so remember it here and tell
+  // the parent in an effect, after the render has finished.
+  const [unreadable, setUnreadable] = useState(false)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -73,13 +79,21 @@ export default function Editor({ label, initialContent, onChange, onContentError
     enableContentCheck: true, // report unknown content instead of silently dropping it
     onContentError: ({ editor: e }) => {
       e.setEditable(false)
-      onContentError?.()
+      setUnreadable(true)
     },
     editorProps: {
       attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': label, class: 'p-3' },
     },
-    onUpdate: ({ editor: e }) => onChange(e.getJSON() as TiptapDoc),
+    // Report only real edits. Tiptap also fires an update while loading content it can't show,
+    // carrying an empty document; passing that on would look like the user deleted their text.
+    onUpdate: ({ editor: e, transaction }) => {
+      if (transaction.docChanged && e.isEditable) onChange(e.getJSON() as TiptapDoc)
+    },
   })
+
+  useEffect(() => {
+    if (unreadable) onContentError?.()
+  }, [unreadable, onContentError])
 
   if (!editor) return null
 

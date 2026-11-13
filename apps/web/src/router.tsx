@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from 'react-router'
 import Layout from './components/Layout'
 import RequireAuth from './components/RequireAuth'
 import ConfirmSignUp from './pages/ConfirmSignUp'
+import EntryPage from './pages/EntryPage'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import ResetPassword from './pages/ResetPassword'
@@ -14,7 +15,14 @@ export const routes: RouteObject[] = [
     element: <Layout />,
     children: [
       // Signed-in only: everything inside RequireAuth.
-      { element: <RequireAuth />, children: [{ path: '/', element: <Home /> }] },
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: '/', element: <Home /> },
+          { path: '/entries/new', element: <EntryPage /> },
+          { path: '/entries/:id', element: <EntryPage /> },
+        ],
+      },
       // Public pages.
       { path: '/signin', element: <SignIn /> },
       { path: '/signup', element: <SignUp /> },

@@ -52,11 +52,13 @@ describe('Editor', () => {
 
   it('locks itself and reports content it cannot show, instead of showing an empty body', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {}) // Tiptap warns about the bad content; expected here
+    const onChange = vi.fn()
     const onContentError = vi.fn()
     const unknown = { type: 'doc' as const, content: [{ type: 'script', content: [{ type: 'text', text: 'x' }] }] }
-    render(<Editor label="Entry" initialContent={unknown} onChange={() => {}} onContentError={onContentError} />)
+    render(<Editor label="Entry" initialContent={unknown} onChange={onChange} onContentError={onContentError} />)
 
     expect(onContentError).toHaveBeenCalledOnce()
+    expect(onChange).not.toHaveBeenCalled() // the empty stand-in document is not an edit
     expect(screen.getByRole('textbox', { name: 'Entry' })).toHaveAttribute('contenteditable', 'false')
     expect(screen.getByRole('button', { name: 'Bold' })).toBeDisabled()
   })

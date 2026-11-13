@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { formatEntryDate } from '../lib/dates'
 import type { Entry } from '../lib/entries'
 
@@ -9,7 +10,11 @@ export default function EntryCard({ entry, onTagClick }: Props) {
   return (
     <article className="rounded border border-stone-200 bg-white p-4">
       <header className="flex items-baseline justify-between gap-4">
-        <h2 className="font-semibold">{entry.title || 'Untitled'}</h2>
+        <h2 className="font-semibold">
+          <Link to={`/entries/${encodeURIComponent(entry.id)}`} className="hover:underline">
+            {entry.title || 'Untitled'}
+          </Link>
+        </h2>
         <time dateTime={entry.entryDate} className="shrink-0 text-sm text-stone-500">
           {formatEntryDate(entry.entryDate)}
         </time>
