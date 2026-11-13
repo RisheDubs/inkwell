@@ -82,4 +82,30 @@
 - Phase 5: CloudFront `/api/*` behaviour, SPA fallback to `index.html`, CloudFront domain in bucket CORS, remove `ALLOW_USER_PASSWORD_AUTH` and `ALLOW_USER_AUTH`.
 - Step 17: public images need a route that finds the owner from the handle.
 
-**Next step**: step 12, the API client (`src/lib/api.ts`).
+## 2026-11-13 · Phase 4, session 2 (steps 12-16 of 24)
+
+**Built**
+- API client: token only on /api/ paths, the API error shape turned into ApiError, request IDs in messages.
+- Timeline: cursor pagination, tag filter, race-safe "Load more", time-zone-safe dates.
+- Tiptap editor: create, edit and delete; PATCH sends only changed fields; tag input; inline delete confirmation (soft delete, honest wording).
+- Image uploads straight to S3; the body stores only the media ID; a fresh link is fetched on display.
+- Theming: paper, font and accent as CSS variables, re-checked before reaching CSS; a Settings page.
+- Go: journal cover by media ID; the S3 key is built from the token's user and never returned to clients.
+- Fixed: the S3 bucket had no CORS rule (planned in 3C, never applied). Now in infra/dev/s3-cors.json.
+
+**Measured**
+- Frontend tests: 135 in 25 files, 6.64s. Go: all packages pass with integration tests; lint 0 issues.
+- First /api/me for a new web user: 1,390 ms, then 1 ms.
+
+**Learned**
+- CORS blocks reading the response, not sending the request: S3 stored the file (204) while the browser showed a failure. curl ignores CORS, so only a real browser found the missing rule.
+- A Vitest beforeEach that returns a function gets that function run as cleanup.
+- React warnings in passing tests can hide real bugs: Tiptap's empty-document update on unreadable content looked like the user deleting their text.
+- Treat stored data as untrusted on the way out too: entry bodies and theme values are re-checked before rendering.
+- Hide internal identifiers: clients get media IDs, never S3 keys (Theme.MarshalJSON).
+
+**Open questions**
+- Browser checks not yet reported for 14c/14d, 15d (F5, no Authorization header on S3) and 16b/16d.
+- Orphaned S3 objects (old covers, removed images, the CORS-failure upload): the ADR-0004 clean-up item.
+
+**Next step**: step 17, the Go public routes for the share page (written test-first).
