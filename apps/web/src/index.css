@@ -9,3 +9,18 @@
 .tiptap ul { list-style: disc; padding-left: 1.5rem; }
 .tiptap ol { list-style: decimal; padding-left: 1.5rem; }
 .tiptap blockquote { border-left: 3px solid #d6d3d1; padding-left: 1rem; color: #57534e; }
+
+/* Journal theme (step 16). JournalFrame sets --ink-accent and --ink-font, plus a paper-* class.
+   The values are checked by lib/theme.ts before they get here. */
+.journal { font-family: var(--ink-font); background-color: #fffdf8; }
+.journal h1 { color: var(--ink-accent); }
+.journal article { border-left: 4px solid var(--ink-accent); }
+.paper-plain { background-image: none; }
+.paper-lined {
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 1.75rem, #e7e5e4 1.75rem, #e7e5e4 calc(1.75rem + 1px));
+}
+.paper-dotted { background-image: radial-gradient(#d6d3d1 1px, transparent 1.5px); background-size: 1.25rem 1.25rem; }
+.paper-grid {
+  background-image: linear-gradient(#e7e5e4 1px, transparent 1px), linear-gradient(90deg, #e7e5e4 1px, transparent 1px);
+  background-size: 1.25rem 1.25rem;
+}

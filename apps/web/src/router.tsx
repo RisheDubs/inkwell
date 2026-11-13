@@ -1,4 +1,5 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
+import JournalFrame from './components/JournalFrame'
 import Layout from './components/Layout'
 import RequireAuth from './components/RequireAuth'
 import ConfirmSignUp from './pages/ConfirmSignUp'
@@ -6,6 +7,7 @@ import EntryPage from './pages/EntryPage'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import ResetPassword from './pages/ResetPassword'
+import Settings from './pages/Settings'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 
@@ -14,13 +16,19 @@ export const routes: RouteObject[] = [
   {
     element: <Layout />,
     children: [
-      // Signed-in only: everything inside RequireAuth.
+      // Signed-in only: the guard first, then the journal's theme around every page.
       {
         element: <RequireAuth />,
         children: [
-          { path: '/', element: <Home /> },
-          { path: '/entries/new', element: <EntryPage /> },
-          { path: '/entries/:id', element: <EntryPage /> },
+          {
+            element: <JournalFrame />,
+            children: [
+              { path: '/', element: <Home /> },
+              { path: '/entries/new', element: <EntryPage /> },
+              { path: '/entries/:id', element: <EntryPage /> },
+              { path: '/settings', element: <Settings /> },
+            ],
+          },
         ],
       },
       // Public pages.

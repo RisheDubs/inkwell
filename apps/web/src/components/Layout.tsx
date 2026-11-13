@@ -38,9 +38,12 @@ export default function Layout() {
         <nav className="mx-auto flex max-w-3xl items-center gap-4 p-4">
           <Link to="/" className="font-semibold text-red-600">Inkwell</Link>
           {signedIn ? (
-            <button type="button" onClick={handleSignOut} className="ml-auto text-sm underline">
-              Sign out
-            </button>
+            <>
+              <Link to="/settings" className="ml-auto text-sm">Settings</Link>
+              <button type="button" onClick={handleSignOut} className="text-sm underline">
+                Sign out
+              </button>
+            </>
           ) : (
             <>
               <Link to="/signin" className="ml-auto text-sm">Sign in</Link>
