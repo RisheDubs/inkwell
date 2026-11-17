@@ -43,21 +43,24 @@ const journal: Journal = {
   createdAt: '2026-11-03T09:00:00Z',
 }
 
+// What JournalFrame shares besides the journal (loadFailed, retry).
+type FrameState = { loadFailed?: boolean; retry?: () => void }
+
 // Stands in for JournalFrame: holds the journal and shows what the page saved into it.
-function FrameStub({ initial }: { initial: Journal | null }) {
+function FrameStub({ initial, frame }: { initial: Journal | null; frame: FrameState }) {
   const [current, setCurrent] = useState(initial)
   return (
     <>
       <p>frame font: {current?.theme.font ?? 'none'}</p>
       <p>frame cover: {current?.theme.coverMediaId || 'none'}</p>
-      <Outlet context={{ journal: current, setJournal: setCurrent } satisfies JournalContext} />
+      <Outlet context={{ journal: current, setJournal: setCurrent, ...frame } satisfies JournalContext} />
     </>
   )
 }
 
-function renderSettings(initial: Journal | null = journal) {
+function renderSettings(initial: Journal | null = journal, frame: FrameState = {}) {
   const router = createMemoryRouter(
-    [{ element: <FrameStub initial={initial} />, children: [{ path: '/settings', element: <Settings /> }] }],
+    [{ element: <FrameStub initial={initial} frame={frame} />, children: [{ path: '/settings', element: <Settings /> }] }],
     { initialEntries: ['/settings'] },
   )
   render(withImages(<RouterProvider router={router} />))
@@ -74,6 +77,16 @@ describe('Settings', () => {
   it('waits for the journal before showing the form', () => {
     renderSettings(null)
     expect(screen.getByRole('status')).toHaveTextContent('Loading your journal')
+  })
+
+  it('says when the journal could not load, and offers to try again', async () => {
+    const retry = vi.fn()
+    const user = userEvent.setup()
+    renderSettings(null, { loadFailed: true, retry })
+
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load your journal.")
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(retry).toHaveBeenCalledTimes(1)
   })
 
   it('fills the form from the journal', () => {

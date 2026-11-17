@@ -117,8 +117,21 @@ function CoverSettings({ journal, onSaved }: { journal: Journal; onSaved: (journ
 }
 
 export default function Settings() {
-  const { journal, setJournal } = useOutletContext<JournalContext>()
+  const { journal, setJournal, loadFailed, retry } = useOutletContext<JournalContext>()
   if (!journal) {
+    // Never "Loading…" forever: say so when the journal couldn't load, and offer another go.
+    if (loadFailed) {
+      return (
+        <div role="alert" className="space-y-2 text-sm">
+          <p className="text-red-700">We couldn't load your journal.</p>
+          {retry && (
+            <button type="button" onClick={retry} className="rounded border border-stone-300 px-3 py-1.5">
+              Try again
+            </button>
+          )}
+        </div>
+      )
+    }
     return (
       <p role="status" className="text-sm text-stone-500">
         Loading your journal…
