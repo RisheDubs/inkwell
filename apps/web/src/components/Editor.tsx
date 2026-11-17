@@ -6,10 +6,9 @@ import {
   type Editor as TiptapEditor,
   type JSONContent,
 } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import type { TiptapDoc } from '../lib/entries'
 import { IMAGE_TYPES, UploadError, uploadImage } from '../lib/media'
-import { MediaImage } from './mediaImage'
+import { bodyExtensions } from './bodyExtensions'
 
 const EMPTY_DOC: TiptapDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
 
@@ -121,13 +120,7 @@ export default function Editor({ label, initialContent, onChange, onContentError
   const [unreadable, setUnreadable] = useState(false)
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [2, 3] }, // the page title is the only <h1>
-        link: false, // links come later, with a safe-URL check
-      }),
-      MediaImage, // images by media ID (step 15)
-    ],
+    extensions: bodyExtensions(), // shared with ReadOnlyBody, so both accept the same nodes
     content: (initialContent ?? EMPTY_DOC) as JSONContent,
     enableContentCheck: true, // report unknown content instead of silently dropping it
     onContentError: ({ editor: e }) => {
