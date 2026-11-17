@@ -38,6 +38,24 @@ services:
         required: false   # the stack still starts without it; entry routes then fail with a clear AWS error
     restart: unless-stopped
 
+  # Vite dev server with live reload (ADR-0006). Local only; production serves static files.
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    image: inkwell-web:dev
+    environment:
+      DEV_HOST: 0.0.0.0                   # listen inside the container, or the published port reaches nothing
+      API_PROXY_TARGET: http://api:8080   # the API by service name, as the API finds "mongodb"
+    ports:
+      - "127.0.0.1:5173:5173"             # still http://localhost:5173, so bucket CORS needs no change
+    volumes:
+      - ./apps/web:/app                   # your source, for live reload
+      - /app/node_modules                 # the image's packages, kept apart from the host's
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   mongo-data:
   mongo-config:

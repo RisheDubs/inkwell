@@ -1,0 +1,6 @@
+# Keep the build context small, and never send secrets to the Docker daemon.
+node_modules
+dist
+.env
+.env.*
+!.env.example

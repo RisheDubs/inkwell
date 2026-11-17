@@ -1,0 +1,17 @@
+# Local development only (ADR-0006). Production is static files on S3 + CloudFront, not this image.
+# Same Node major/minor as the host, so the lockfile resolves the same way.
+FROM node:26.13-slim
+
+WORKDIR /app
+# The image's built-in non-root user; uid 1000 usually matches your WSL user, so files
+# Vite writes into the bind mount stay yours.
+RUN chown node:node /app
+USER node
+
+# Dependencies are baked into the image. Compose mounts the source over /app but keeps this
+# node_modules in its own volume, so Linux packages never mix with the host's.
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+EXPOSE 5173
+CMD ["npx", "vite"]

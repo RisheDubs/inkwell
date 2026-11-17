@@ -14,7 +14,7 @@ creds: ## Write 1-hour AWS credentials for the API container (role inkwell-dev-a
 	@echo "Wrote .aws-session.env (valid for 1 hour). Now run: make up"
 
 up: ## Build and start the whole stack in the background
-	docker compose up -d --build
+	docker compose up -d --build -V
 
 down: ## Stop the stack (data volumes are kept)
 	docker compose down
@@ -24,6 +24,9 @@ ps: ## Show container status
 
 logs: ## Follow the API's logs (Ctrl+C to stop following)
 	docker compose logs -f api
+
+logs-web: ## Follow the web dev server's logs (Ctrl+C to stop following)
+	docker compose logs -f web
 
 test: ## Run the Go unit tests
 	cd $(API_DIR) && go test ./...
