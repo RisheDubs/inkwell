@@ -122,13 +122,16 @@ func newIsolationServer(t *testing.T) (http.Handler, *memBodies) {
 
 	bodies := &memBodies{m: map[string][]byte{}}
 	svc := journal.NewService(store, emailsByToken{})
+	entries := journal.NewEntryService(store, store, bodies, mongostore.NewID)
+	media := journal.NewMediaService(keyPresigner{}, mongostore.NewID)
 	return NewRouter(Deps{
 		DB:       store,
 		Verifier: twoUsers{},
 		Me:       svc,
 		Journals: svc,
-		Entries:  journal.NewEntryService(store, store, bodies, mongostore.NewID),
-		Media:    journal.NewMediaService(keyPresigner{}, mongostore.NewID),
+		Entries:  entries,
+		Media:    media,
+		Public:   journal.NewPublicService(store, entries, media),
 	}), bodies
 }
 

@@ -40,6 +40,7 @@ func (s *Store) FindJournal(ctx context.Context, ownerID string) (journal.Journa
 // UpdateJournal applies the non-nil fields of in to the owner's journal.
 func (s *Store) UpdateJournal(ctx context.Context, ownerID string, in journal.UpdateJournalInput) (journal.Journal, error) {
 	set := bson.D{}
+	unset := bson.D{}
 	if in.Title != nil {
 		set = append(set, bson.E{Key: "title", Value: *in.Title})
 	}
@@ -57,15 +58,31 @@ func (s *Store) UpdateJournal(ctx context.Context, ownerID string, in journal.Up
 		if in.Theme.Accent != nil {
 			set = append(set, bson.E{Key: "theme.accent", Value: *in.Theme.Accent})
 		}
+		if in.Theme.CoverKey != nil {
+			if *in.Theme.CoverKey == "" {
+				// Removing the cover deletes the field, matching coverKey's omitempty.
+				unset = append(unset, bson.E{Key: "theme.coverKey", Value: ""})
+			} else {
+				set = append(set, bson.E{Key: "theme.coverKey", Value: *in.Theme.CoverKey})
+			}
+		}
 	}
-	if len(set) == 0 {
+	if len(set) == 0 && len(unset) == 0 {
 		return s.FindJournal(ctx, ownerID)
+	}
+
+	update := bson.D{}
+	if len(set) > 0 {
+		update = append(update, bson.E{Key: "$set", Value: set})
+	}
+	if len(unset) > 0 {
+		update = append(update, bson.E{Key: "$unset", Value: unset})
 	}
 
 	var d journalDoc
 	err := s.db.Collection(journalsCollection).FindOneAndUpdate(ctx,
 		bson.D{{Key: "ownerId", Value: ownerID}},
-		bson.D{{Key: "$set", Value: set}},
+		update,
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&d)
 	if errors.Is(err, mongodriver.ErrNoDocuments) {

@@ -55,5 +55,114 @@
 - Rotate a credential on the server first, then in the config; health checks notice first.
 - A secret leaks the moment it's in a terminal, screenshot, chat or log, not only on GitHub.
 
-### Next step
-Phase 4: React + Vite + Tiptap frontend with Amplify sign-in.
+## 2026-11-12 · Phase 4, session 1 (steps 1-11 of 24)
+
+**Built** (branch `feat/phase-4-frontend`, 9 commits, latest `4856b17`)
+- ADR-0005 same-origin API (Vite proxy now, CloudFront later), ADR-0006 Vite dev container, ADR-0007 functional UI first.
+- `apps/web`: Vite + React + TypeScript, Tailwind v4, Vitest + Testing Library + ESLint, validated Cognito config, Amplify Auth.
+- React Router with a shared layout; sign-up + email confirmation, sign-in + sign-out, `RequireAuth` route guard, password reset. All checked in the browser against real Cognito.
+
+**Measured**
+- `npm install`: 160 packages in 57s. `npm audit --omit=dev`: 0 vulnerabilities (10 moderate, dev-only, minimatch).
+- Production build 223 ms. CSS 6.82 kB (2.07 kB gzip). JS 219.75 kB (68.70 kB gzip) before Amplify, 281.39 kB (88.79 kB gzip) after.
+- Frontend tests: 47 in 11 files, 4.30s; lint and type check clean.
+
+**Learned**
+- Same origin vs CORS; CORS is a browser rule, not auth.
+- `VITE_` variables ship to every visitor, so only identifiers go there, never secrets.
+- SRP keeps the password in the browser; the API only accepts access tokens, never ID tokens.
+- A route guard is UX only; the API's token check is the security.
+- Open redirects (only same-app return paths) and user enumeration (same message for real and unknown emails).
+- Tokens live in localStorage, so XSS would mean stolen sessions (matters for the editor and the CSP).
+- Debugging story: a test failed after its last line ran. Logging inside the test and the JSON report's stack showed `beforeEach(() => mock.mockReset())` was returning the mock, which Vitest ran as cleanup. Fix: braces, so `beforeEach` returns nothing.
+- Run commands from the right folder: npm in `apps/web`, git/make at the repo root.
+
+**Open questions**
+- `943026b` and `f0873a4` reached `main` without a PR number, but `protect-main` has an empty bypass list. Check at close-out.
+- Phase 5: CloudFront `/api/*` behaviour, SPA fallback to `index.html`, CloudFront domain in bucket CORS, remove `ALLOW_USER_PASSWORD_AUTH` and `ALLOW_USER_AUTH`.
+- Step 17: public images need a route that finds the owner from the handle.
+
+## 2026-11-13 · Phase 4, session 2 (steps 12-16 of 24)
+
+**Built**
+- API client: token only on /api/ paths, the API error shape turned into ApiError, request IDs in messages.
+- Timeline: cursor pagination, tag filter, race-safe "Load more", time-zone-safe dates.
+- Tiptap editor: create, edit and delete; PATCH sends only changed fields; tag input; inline delete confirmation (soft delete, honest wording).
+- Image uploads straight to S3; the body stores only the media ID; a fresh link is fetched on display.
+- Theming: paper, font and accent as CSS variables, re-checked before reaching CSS; a Settings page.
+- Go: journal cover by media ID; the S3 key is built from the token's user and never returned to clients.
+- Fixed: the S3 bucket had no CORS rule (planned in 3C, never applied). Now in infra/dev/s3-cors.json.
+
+**Measured**
+- Frontend tests: 135 in 25 files, 6.64s. Go: all packages pass with integration tests; lint 0 issues.
+- First /api/me for a new web user: 1,390 ms, then 1 ms.
+
+**Learned**
+- CORS blocks reading the response, not sending the request: S3 stored the file (204) while the browser showed a failure. curl ignores CORS, so only a real browser found the missing rule.
+- A Vitest beforeEach that returns a function gets that function run as cleanup.
+- React warnings in passing tests can hide real bugs: Tiptap's empty-document update on unreadable content looked like the user deleting their text.
+- Treat stored data as untrusted on the way out too: entry bodies and theme values are re-checked before rendering.
+- Hide internal identifiers: clients get media IDs, never S3 keys (Theme.MarshalJSON).
+
+**Open questions**
+- Browser checks not yet reported for 14c/14d, 15d (F5, no Authorization header on S3) and 16b/16d.
+- Orphaned S3 objects (old covers, removed images, the CORS-failure upload): the ADR-0004 clean-up item.
+
+**Next step**: step 17, the Go public routes for the share page (written test-first).
+
+## 2026-11-15 · Phase 4, session 3 (step 17 of 24)
+
+**Built**
+- Go public routes, written test-first: `GET /api/public/{handle}` (`?cursor&limit&tag`), `/entries/{id}`, `/media/{mediaID}`. No token.
+- One gate (`PublicService.owner`): normalise the handle, check the pattern before any DB call, find the user, find the journal, require `visibility: "public"`; anything else is the same 404.
+- Separate public types with no ownerId, email, journalId, S3 keys or timestamps. `Cache-Control: no-store` on every response, errors included.
+- `FindUserByHandle` with `{$eq, $type: "string"}`, so the partial unique index is used and no operator can be injected.
+- Router split: a `/public/{handle}` sub-router outside `requireAuth`; unknown `/api` paths still hit auth first.
+- Fixed a leak the isolation test found: the default journal title was built from the display name, which starts as part of the email. New journals are now "My Journal" (ADR-0008).
+
+**Measured**
+- Go coverage: config 100, store/s3 96.7, httpapi 91.0, journal 87.8, auth 84.8. Lint 0 issues.
+
+**Learned**
+- A field can be meant to be public while its value comes from private data. Test the values, not just the field list.
+- When a test protects a security decision and fails, fix the code, not the test.
+- `set -o pipefail`; `jq` turns a 401 into nulls; an empty `if` body is a test that can't fail (staticcheck SA9003); tagged integration files need `go vet -tags integration`.
+
+**Open questions**
+- Unknown handle = 1 query, private journal = 2: a timing difference. Rate limiting comes in Phase 8.
+
+**Next step**: verify step 17 on the real stack (17e), then the public page in the web app (step 18).
+
+## 2026-11-17 · Phase 4, session 4 (steps 17e-22 of 24)
+
+**Built**
+- 17e verified on the real stack: private 404, public 200 with `no-store`, no private strings in the response, back to private 404.
+- `lib/public.ts`: fetch for public routes that never asks for a token and sends no cookies; every path segment encoded.
+- Image URLs through a React context with no default (ADR-0009): signed-in pages use the private route, the public page the public one; forgetting fails in tests.
+- Read-only entry body sharing the editor's node list; public pages `/j/:handle` and `/j/:handle/:id`, one "isn't available" page for every failure.
+- Sharing settings: handle (409 "taken"), public toggle only with a handle, confirm before going public, warning that a changed handle frees the old one.
+- Web dev container in Compose (ADR-0006); `make up` renews `node_modules`; `make logs-web`.
+- CI web job: lint, tests, build, `npm audit`; required by `protect-main`. Draft PR so CI runs on every push.
+- End-to-end check with a brand-new account found a real bug: nothing in the web app called `GET /api/me`, so new users never got a journal and Settings spun forever. Fixed: the frame calls `/api/me` first and shows load failures with a retry.
+- Security pass: no secrets or build output tracked, no raw HTML or eval, `noopener` on new tabs, 0 production advisories.
+- The editor pages load on demand.
+
+**Measured**
+- Frontend tests: 188 in 31 files, 6.66 s. Lint 0 issues. Production audit: 0 vulnerabilities.
+- Initial JavaScript: 902.81 kB → 479.90 kB (278.24 → 147.48 kB gzip), −47%. The editor chunk (415.03 kB) is not preloaded.
+- Web container: Vite ready in 243 ms; cached rebuild of both images 2.4 s. CI web job: 30 s.
+- End-to-end: 10 of 10 checks passed after one fix.
+
+**Learned**
+- Fail closed: a context with no default turns a forgotten provider into a test failure instead of a silent token leak.
+- A function passed through context needs a stable identity (`useCallback`), or every effect that depends on it re-runs.
+- My own account was created with curl in Phase 2, which hid the first-sign-in bug. Only a fresh account in a real browser found it.
+- CI only ran on `pull_request` and `main`, so pushes to a feature branch tested nothing until the draft PR existed.
+- Makefiles need tabs; anonymous volumes and `-V` keep container packages in step with the lockfile.
+
+**Open questions**
+- Amplify keeps Cognito tokens in localStorage: Phase 5 needs a strict CSP, and maybe cookie storage.
+- Orphaned S3 objects (ADR-0004 item).
+- `943026b` and `f0873a4` reached `main` without a PR: check the ruleset after this merge.
+
+**Next step**: merge Phase 4 into `main`, then Phase 5 (Terraform: VPC, ECS Fargate, ALB, CloudFront).

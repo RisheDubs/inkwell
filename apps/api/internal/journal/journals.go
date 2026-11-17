@@ -21,6 +21,11 @@ type ThemeInput struct {
 	Paper  *string `json:"paper"`
 	Font   *string `json:"font"`
 	Accent *string `json:"accent"`
+	// CoverMediaID is the media ID of an uploaded image, or "" to remove the cover.
+	CoverMediaID *string `json:"coverMediaId"`
+	// CoverKey is set by the service, never by the client (json:"-"): it is built from the
+	// caller's own user ID, so a cover can only point into their own folder.
+	CoverKey *string `json:"-"`
 }
 
 const maxTitleRunes = 100
@@ -43,13 +48,30 @@ func (s *Service) UpdateJournal(ctx context.Context, ownerID string, in UpdateJo
 	if err != nil {
 		return Journal{}, err
 	}
-	return s.repo.UpdateJournal(ctx, ownerID, clean)
+	return s.repo.UpdateJournal(ctx, ownerID, withCoverKey(ownerID, clean))
+}
+
+// withCoverKey turns a validated cover media ID into the S3 key the store saves ("" removes the
+// cover). The key always comes from MediaKey and the caller's own user ID, never from the client.
+func withCoverKey(ownerID string, in UpdateJournalInput) UpdateJournalInput {
+	if in.Theme == nil || in.Theme.CoverMediaID == nil {
+		return in
+	}
+	theme := *in.Theme // copy, so the caller's input is left untouched
+	key := ""
+	if id := *theme.CoverMediaID; id != "" {
+		key = MediaKey(ownerID, id)
+	}
+	theme.CoverKey = &key
+	in.Theme = &theme
+	return in
 }
 
 // ValidateJournalUpdate checks and normalises PATCH /api/journal input.
 // Every value is checked against an allow-list: the client can't store arbitrary styles.
 func ValidateJournalUpdate(in UpdateJournalInput) (UpdateJournalInput, error) {
-	themeEmpty := in.Theme == nil || (in.Theme.Paper == nil && in.Theme.Font == nil && in.Theme.Accent == nil)
+	themeEmpty := in.Theme == nil ||
+		(in.Theme.Paper == nil && in.Theme.Font == nil && in.Theme.Accent == nil && in.Theme.CoverMediaID == nil)
 	if in.Title == nil && in.Visibility == nil && themeEmpty {
 		return UpdateJournalInput{}, &ValidationError{Message: "provide at least one of title, visibility or theme"}
 	}
@@ -78,7 +100,7 @@ func ValidateJournalUpdate(in UpdateJournalInput) (UpdateJournalInput, error) {
 	}
 
 	if !themeEmpty {
-		t := ThemeInput{}
+		t := ThemeInput{} // starts empty, so a CoverKey can never come from the client
 		if in.Theme.Paper != nil {
 			p := strings.ToLower(strings.TrimSpace(*in.Theme.Paper))
 			if !allowedPapers[p] {
@@ -99,6 +121,14 @@ func ValidateJournalUpdate(in UpdateJournalInput) (UpdateJournalInput, error) {
 				return UpdateJournalInput{}, &ValidationError{Field: "theme.accent", Message: `must be a hex colour like "#2f5d50"`}
 			}
 			t.Accent = &a
+		}
+		if in.Theme.CoverMediaID != nil {
+			id := strings.TrimSpace(*in.Theme.CoverMediaID)
+			// "" removes the cover; anything else must be exactly a media ID from an upload.
+			if id != "" && !mediaIDPattern.MatchString(id) {
+				return UpdateJournalInput{}, &ValidationError{Field: "theme.coverMediaId", Message: "must be the media ID of an uploaded image, or empty to remove the cover"}
+			}
+			t.CoverMediaID = &id
 		}
 		out.Theme = &t
 	}

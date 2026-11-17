@@ -3,8 +3,10 @@ package journal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -31,10 +33,27 @@ type User struct {
 
 // Theme is how a journal looks.
 type Theme struct {
-	Paper    string `bson:"paper" json:"paper"`
-	Font     string `bson:"font" json:"font"`
-	Accent   string `bson:"accent" json:"accent"`
-	CoverKey string `bson:"coverKey,omitempty" json:"coverKey,omitempty"`
+	Paper  string `bson:"paper" json:"paper"`
+	Font   string `bson:"font" json:"font"`
+	Accent string `bson:"accent" json:"accent"`
+	// CoverKey is where the cover image lives in S3. It is stored, but never sent to clients:
+	// MarshalJSON turns it into coverMediaId.
+	CoverKey string `bson:"coverKey,omitempty" json:"-"`
+}
+
+// MarshalJSON sends the cover as its media ID, never as the S3 key. The key contains the owner's
+// user ID and our bucket layout, and doing this here means no handler can leak it by accident.
+func (t Theme) MarshalJSON() ([]byte, error) {
+	out := struct {
+		Paper        string `json:"paper"`
+		Font         string `json:"font"`
+		Accent       string `json:"accent"`
+		CoverMediaID string `json:"coverMediaId,omitempty"`
+	}{Paper: t.Paper, Font: t.Font, Accent: t.Accent}
+	if t.CoverKey != "" {
+		out.CoverMediaID = path.Base(t.CoverKey)
+	}
+	return json.Marshal(out)
 }
 
 // Journal is a user's notebook. MongoDB assigns its _id; the store fills in ID.
@@ -114,7 +133,7 @@ func (s *Service) Me(ctx context.Context, userID, accessToken string) (User, err
 
 	// Journal first, then user: if anything fails in between, the next call retries both,
 	// and "user exists" always implies "journal exists".
-	if err := s.repo.EnsureJournal(ctx, NewJournal(userID, name, now)); err != nil {
+	if err := s.repo.EnsureJournal(ctx, NewJournal(userID, now)); err != nil {
 		return User{}, fmt.Errorf("create journal: %w", err)
 	}
 	u, err = s.repo.EnsureUser(ctx, User{ID: userID, Email: email, DisplayName: name, CreatedAt: now})
@@ -139,11 +158,16 @@ func storedTime(t time.Time) time.Time {
 	return t.UTC().Truncate(time.Millisecond)
 }
 
-// NewJournal returns a user's first journal with the default theme.
-func NewJournal(ownerID, displayName string, now time.Time) Journal {
+// defaultJournalTitle is every new journal's title. It is a fixed string on purpose: a journal
+// can be made public, so nothing in its defaults may be built from private data. The display
+// name, for example, can start out as part of the user's email address.
+const defaultJournalTitle = "My Journal"
+
+// NewJournal returns a user's first journal: private, with the default title and theme.
+func NewJournal(ownerID string, now time.Time) Journal {
 	return Journal{
 		OwnerID:    ownerID,
-		Title:      displayName + "'s Journal",
+		Title:      defaultJournalTitle,
 		Visibility: "private",
 		Theme:      Theme{Paper: "dotted", Font: "serif", Accent: "#2f5d50"},
 		CreatedAt:  now,

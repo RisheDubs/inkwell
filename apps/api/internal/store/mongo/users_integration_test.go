@@ -74,7 +74,7 @@ func TestEnsureUserIsIdempotent(t *testing.T) {
 func TestEnsureJournalCreatesOnlyOne(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
-	j := journal.NewJournal("user-1", "A", time.Now().UTC())
+	j := journal.NewJournal("user-1", time.Now().UTC())
 
 	for i := 0; i < 3; i++ {
 		if err := s.EnsureJournal(ctx, j); err != nil {

@@ -79,3 +79,27 @@ jobs:
         run: |
           export MONGODB_URI="mongodb://ci:${MONGO_ROOT_PASSWORD}@localhost:27017/?directConnection=true&authSource=admin"
           go test -tags integration -count=1 -v ./...
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    # This job's commands run in the web app, not apps/api (the workflow default).
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13" # same as the host and Dockerfile.dev
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install exactly what the lockfile says
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests (run once, no watch mode)
+        run: npx vitest run
+      - name: Type-check and production build
+        run: npm run build
+      - name: Fail on high or critical advisories in runtime dependencies
+        run: npm audit --omit=dev --audit-level=high

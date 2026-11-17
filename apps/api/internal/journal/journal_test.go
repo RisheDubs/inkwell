@@ -113,7 +113,7 @@ func TestMeCreatesUserAndJournalOnFirstCall(t *testing.T) {
 	if !ok {
 		t.Fatal("journal was not created")
 	}
-	if j.Title != "rishe's Journal" || j.Visibility != "private" || j.Theme.Paper != "dotted" {
+	if j.Title != "My Journal" || j.Visibility != "private" || j.Theme.Paper != "dotted" {
 		t.Errorf("journal = %+v", j)
 	}
 
