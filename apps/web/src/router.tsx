@@ -1,11 +1,14 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import JournalFrame from './components/JournalFrame'
 import Layout from './components/Layout'
+import PublicFrame from './components/PublicFrame'
 import RequireAuth from './components/RequireAuth'
 import ConfirmSignUp from './pages/ConfirmSignUp'
 import EntryPage from './pages/EntryPage'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
+import PublicEntry from './pages/PublicEntry'
+import PublicJournal from './pages/PublicJournal'
 import ResetPassword from './pages/ResetPassword'
 import Settings from './pages/Settings'
 import SignIn from './pages/SignIn'
@@ -29,6 +32,15 @@ export const routes: RouteObject[] = [
               { path: '/settings', element: <Settings /> },
             ],
           },
+        ],
+      },
+      // Shared journals: no sign-in, no token, public image route (ADR-0009).
+      {
+        path: '/j/:handle',
+        element: <PublicFrame />,
+        children: [
+          { index: true, element: <PublicJournal /> },
+          { path: ':id', element: <PublicEntry /> },
         ],
       },
       // Public pages.
