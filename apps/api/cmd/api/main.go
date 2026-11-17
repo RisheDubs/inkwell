@@ -90,6 +90,7 @@ func main() {
 			Journals: svc,
 			Entries:  entries,
 			Media:    media,
+			Public:   journal.NewPublicService(store, entries, media),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

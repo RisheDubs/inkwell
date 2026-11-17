@@ -50,6 +50,13 @@ type MediaService interface {
 	DownloadURL(ctx context.Context, ownerID, mediaID string) (journal.MediaURL, error)
 }
 
+// PublicService serves journals their owners have made public, to anyone, by handle.
+type PublicService interface {
+	Journal(ctx context.Context, handle string, in journal.ListInput) (journal.PublicJournal, error)
+	Entry(ctx context.Context, handle, id string) (journal.PublicEntry, error)
+	MediaURL(ctx context.Context, handle, mediaID string) (journal.MediaURL, error)
+}
+
 // Deps are everything the router needs. Tests pass fakes.
 type Deps struct {
 	DB       Pinger
@@ -58,6 +65,7 @@ type Deps struct {
 	Journals JournalService
 	Entries  EntryService
 	Media    MediaService
+	Public   PublicService
 }
 
 // NewRouter builds the HTTP router with every route registered.
@@ -72,27 +80,63 @@ func NewRouter(d Deps) http.Handler {
 	// Public: no token needed.
 	r.Get("/healthz", healthz(d.DB))
 
-	// Everything under /api needs a valid Cognito access token.
 	r.Route("/api", func(r chi.Router) {
-		r.Use(requireAuth(d.Verifier))
+		// Public journals: read-only, no token.
+		r.Route("/public/{handle}", func(r chi.Router) {
+			// Its own 404 and 405, set before chi mounts it. Without them it would inherit the
+			// token-checking ones below, and a mistyped public link would ask for a token.
+			r.NotFound(publicNotFound)
+			r.MethodNotAllowed(methodNotAllowed)
 
-		r.Get("/me", getMe(d.Me))
-		r.Patch("/me", patchMe(d.Me))
+			r.Get("/", getPublicJournal(d.Public))
+			r.Get("/entries/{id}", getPublicEntry(d.Public))
+			r.Get("/media/{mediaID}", getPublicMediaURL(d.Public))
+		})
 
-		r.Get("/journal", getJournal(d.Journals))
-		r.Patch("/journal", patchJournal(d.Journals))
+		// Everything else under /api needs a valid Cognito access token.
+		r.Group(func(r chi.Router) {
+			r.Use(requireAuth(d.Verifier))
 
-		r.Get("/entries", listEntries(d.Entries))
-		r.Post("/entries", createEntry(d.Entries))
-		r.Get("/entries/{id}", getEntry(d.Entries))
-		r.Patch("/entries/{id}", patchEntry(d.Entries))
-		r.Delete("/entries/{id}", deleteEntry(d.Entries))
+			r.Get("/me", getMe(d.Me))
+			r.Patch("/me", patchMe(d.Me))
 
-		r.Post("/media/uploads", createUpload(d.Media))
-		r.Get("/media/{mediaID}", getMediaURL(d.Media))
+			r.Get("/journal", getJournal(d.Journals))
+			r.Patch("/journal", patchJournal(d.Journals))
+
+			r.Get("/entries", listEntries(d.Entries))
+			r.Post("/entries", createEntry(d.Entries))
+			r.Get("/entries/{id}", getEntry(d.Entries))
+			r.Patch("/entries/{id}", patchEntry(d.Entries))
+			r.Delete("/entries/{id}", deleteEntry(d.Entries))
+
+			r.Post("/media/uploads", createUpload(d.Media))
+			r.Get("/media/{mediaID}", getMediaURL(d.Media))
+		})
+
+		// Unknown paths and wrong methods under /api check the token first too, so a caller
+		// without one can't work out which private routes exist.
+		authed := requireAuth(d.Verifier)
+		r.NotFound(authed(http.HandlerFunc(notFound)).ServeHTTP)
+		r.MethodNotAllowed(authed(http.HandlerFunc(methodNotAllowed)).ServeHTTP)
 	})
 
 	return r
+}
+
+// notFound is the API's 404, in the standard error format.
+func notFound(w http.ResponseWriter, r *http.Request) {
+	writeError(w, r, http.StatusNotFound, "not_found", "not found")
+}
+
+// publicNotFound is the same 404 for a path that doesn't exist under /api/public/{handle}.
+func publicNotFound(w http.ResponseWriter, r *http.Request) {
+	noStore(w)
+	notFound(w, r)
+}
+
+// methodNotAllowed is the API's 405, in the standard error format.
+func methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
 }
 
 // healthz reports whether the API is alive and can reach MongoDB.
