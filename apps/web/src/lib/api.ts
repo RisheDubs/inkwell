@@ -15,7 +15,18 @@ export class ApiError extends Error {
   }
 }
 
-export type Me = { id: string; email: string }
+// GET /api/me (journal.User in the Go API). handle is null until the user picks one.
+export type Me = {
+  id: string
+  email: string
+  displayName: string
+  handle: string | null
+  aiOptIn: boolean
+  createdAt: string
+}
+
+// PATCH /api/me: only the fields that change.
+export type MeChanges = { displayName?: string; handle?: string; aiOptIn?: boolean }
 
 type ErrorBody = { error?: { code?: string; message?: string; requestId?: string } } | null
 
@@ -67,4 +78,8 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
 export function getMe(): Promise<Me> {
   return apiFetch<Me>('/api/me')
+}
+
+export function updateMe(changes: MeChanges): Promise<Me> {
+  return apiFetch<Me>('/api/me', { method: 'PATCH', body: JSON.stringify(changes) })
 }

@@ -4,12 +4,16 @@ import { useState } from 'react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JournalContext } from '../components/JournalFrame'
-import { ApiError } from '../lib/api'
+import { ApiError, getMe, type Me } from '../lib/api'
 import { updateJournal, type Journal } from '../lib/journal'
 import { getImageUrl, UploadError, uploadImage } from '../lib/media'
 import { withImages } from '../test/images'
 import Settings from './Settings'
 
+vi.mock('../lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/api')>()),
+  getMe: vi.fn(), // the Sharing section loads the user's handle
+}))
 vi.mock('../lib/journal', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/journal')>()),
   updateJournal: vi.fn(),
@@ -21,6 +25,15 @@ vi.mock('../lib/media', async (importOriginal) => ({
 }))
 
 const COVER_ID = '6af4937db325014a79b03c88.png'
+
+const me: Me = {
+  id: 'u1',
+  email: 'rishi@example.com',
+  displayName: 'Rishi',
+  handle: null,
+  aiOptIn: false,
+  createdAt: '2026-11-03T09:00:00Z',
+}
 
 const journal: Journal = {
   id: 'j1',
@@ -55,6 +68,7 @@ describe('Settings', () => {
     vi.mocked(updateJournal).mockReset()
     vi.mocked(uploadImage).mockReset()
     vi.mocked(getImageUrl).mockReset()
+    vi.mocked(getMe).mockReset().mockResolvedValue(me)
   })
 
   it('waits for the journal before showing the form', () => {
@@ -148,5 +162,12 @@ describe('Settings', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Images must be 5 MB or smaller.')
     expect(updateJournal).not.toHaveBeenCalled()
+  })
+
+  it('includes the sharing settings', async () => {
+    renderSettings()
+
+    expect(await screen.findByRole('heading', { name: 'Sharing' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Handle' })).toHaveValue('')
   })
 })

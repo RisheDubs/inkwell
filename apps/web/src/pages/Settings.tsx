@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router'
 import CoverImage from '../components/CoverImage'
 import type { JournalContext } from '../components/JournalFrame'
+import SharingSettings from '../components/SharingSettings'
 import { ApiError } from '../lib/api'
 import {
   FONTS,
@@ -252,6 +253,11 @@ function SettingsForm({ journal, onSaved }: { journal: Journal; onSaved: (journa
           {busy ? 'Saving…' : 'Save settings'}
         </button>
       </form>
+
+      {/* Handle and visibility save on their own, like the cover. */}
+      <div className="mt-8 border-t border-stone-200 pt-4">
+        <SharingSettings journal={journal} onSaved={onSaved} />
+      </div>
     </div>
   )
 }
