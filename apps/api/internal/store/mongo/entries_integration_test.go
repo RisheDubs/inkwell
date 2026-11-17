@@ -15,7 +15,7 @@ import (
 func seedJournal(t *testing.T, s *Store, ownerID string) string {
 	t.Helper()
 	ctx := context.Background()
-	if err := s.EnsureJournal(ctx, journal.NewJournal(ownerID, ownerID, time.Now().UTC())); err != nil {
+	if err := s.EnsureJournal(ctx, journal.NewJournal(ownerID, time.Now().UTC())); err != nil {
 		t.Fatalf("EnsureJournal(%s) error = %v", ownerID, err)
 	}
 	j, err := s.FindJournal(ctx, ownerID)
