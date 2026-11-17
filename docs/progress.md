@@ -109,3 +109,60 @@
 - Orphaned S3 objects (old covers, removed images, the CORS-failure upload): the ADR-0004 clean-up item.
 
 **Next step**: step 17, the Go public routes for the share page (written test-first).
+
+## 2026-11-15 · Phase 4, session 3 (step 17 of 24)
+
+**Built**
+- Go public routes, written test-first: `GET /api/public/{handle}` (`?cursor&limit&tag`), `/entries/{id}`, `/media/{mediaID}`. No token.
+- One gate (`PublicService.owner`): normalise the handle, check the pattern before any DB call, find the user, find the journal, require `visibility: "public"`; anything else is the same 404.
+- Separate public types with no ownerId, email, journalId, S3 keys or timestamps. `Cache-Control: no-store` on every response, errors included.
+- `FindUserByHandle` with `{$eq, $type: "string"}`, so the partial unique index is used and no operator can be injected.
+- Router split: a `/public/{handle}` sub-router outside `requireAuth`; unknown `/api` paths still hit auth first.
+- Fixed a leak the isolation test found: the default journal title was built from the display name, which starts as part of the email. New journals are now "My Journal" (ADR-0008).
+
+**Measured**
+- Go coverage: config 100, store/s3 96.7, httpapi 91.0, journal 87.8, auth 84.8. Lint 0 issues.
+
+**Learned**
+- A field can be meant to be public while its value comes from private data. Test the values, not just the field list.
+- When a test protects a security decision and fails, fix the code, not the test.
+- `set -o pipefail`; `jq` turns a 401 into nulls; an empty `if` body is a test that can't fail (staticcheck SA9003); tagged integration files need `go vet -tags integration`.
+
+**Open questions**
+- Unknown handle = 1 query, private journal = 2: a timing difference. Rate limiting comes in Phase 8.
+
+**Next step**: verify step 17 on the real stack (17e), then the public page in the web app (step 18).
+
+## 2026-11-17 · Phase 4, session 4 (steps 17e-22 of 24)
+
+**Built**
+- 17e verified on the real stack: private 404, public 200 with `no-store`, no private strings in the response, back to private 404.
+- `lib/public.ts`: fetch for public routes that never asks for a token and sends no cookies; every path segment encoded.
+- Image URLs through a React context with no default (ADR-0009): signed-in pages use the private route, the public page the public one; forgetting fails in tests.
+- Read-only entry body sharing the editor's node list; public pages `/j/:handle` and `/j/:handle/:id`, one "isn't available" page for every failure.
+- Sharing settings: handle (409 "taken"), public toggle only with a handle, confirm before going public, warning that a changed handle frees the old one.
+- Web dev container in Compose (ADR-0006); `make up` renews `node_modules`; `make logs-web`.
+- CI web job: lint, tests, build, `npm audit`; required by `protect-main`. Draft PR so CI runs on every push.
+- End-to-end check with a brand-new account found a real bug: nothing in the web app called `GET /api/me`, so new users never got a journal and Settings spun forever. Fixed: the frame calls `/api/me` first and shows load failures with a retry.
+- Security pass: no secrets or build output tracked, no raw HTML or eval, `noopener` on new tabs, 0 production advisories.
+- The editor pages load on demand.
+
+**Measured**
+- Frontend tests: 188 in 31 files, 6.66 s. Lint 0 issues. Production audit: 0 vulnerabilities.
+- Initial JavaScript: 902.81 kB → 479.90 kB (278.24 → 147.48 kB gzip), −47%. The editor chunk (415.03 kB) is not preloaded.
+- Web container: Vite ready in 243 ms; cached rebuild of both images 2.4 s. CI web job: 30 s.
+- End-to-end: 10 of 10 checks passed after one fix.
+
+**Learned**
+- Fail closed: a context with no default turns a forgotten provider into a test failure instead of a silent token leak.
+- A function passed through context needs a stable identity (`useCallback`), or every effect that depends on it re-runs.
+- My own account was created with curl in Phase 2, which hid the first-sign-in bug. Only a fresh account in a real browser found it.
+- CI only ran on `pull_request` and `main`, so pushes to a feature branch tested nothing until the draft PR existed.
+- Makefiles need tabs; anonymous volumes and `-V` keep container packages in step with the lockfile.
+
+**Open questions**
+- Amplify keeps Cognito tokens in localStorage: Phase 5 needs a strict CSP, and maybe cookie storage.
+- Orphaned S3 objects (ADR-0004 item).
+- `943026b` and `f0873a4` reached `main` without a PR: check the ruleset after this merge.
+
+**Next step**: merge Phase 4 into `main`, then Phase 5 (Terraform: VPC, ECS Fargate, ALB, CloudFront).
