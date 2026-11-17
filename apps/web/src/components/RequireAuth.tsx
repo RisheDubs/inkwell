@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { isSignedIn } from '../lib/auth'
+import { ImageResolverContext } from '../lib/imageResolver'
+import { getImageUrl } from '../lib/media'
 
 type Status = 'checking' | 'signed-in' | 'signed-out'
 
@@ -37,5 +39,11 @@ export default function RequireAuth() {
     return <Navigate to="/signin" replace state={{ from: location.pathname }} />
   }
 
-  return <Outlet /> // the protected page
+  // The protected page. Everything behind the guard shows the signed-in user's own images,
+  // through the token route (ADR-0009). Public pages choose their own resolver.
+  return (
+    <ImageResolverContext value={getImageUrl}>
+      <Outlet />
+    </ImageResolverContext>
+  )
 }

@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider, useOutletContext } from 'react-rout
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getJournal, type Journal } from '../lib/journal'
 import { getImageUrl } from '../lib/media'
+import { withImages } from '../test/images'
 import JournalFrame, { type JournalContext } from './JournalFrame'
 
 vi.mock('../lib/journal', async (importOriginal) => ({
@@ -32,7 +33,7 @@ function renderFrame(path = '/') {
     [{ element: <JournalFrame />, children: [{ path: '/', element: <TitleProbe /> }, { path: '/settings', element: <TitleProbe /> }] }],
     { initialEntries: [path] },
   )
-  render(<RouterProvider router={router} />)
+  render(withImages(<RouterProvider router={router} />))
 }
 
 describe('JournalFrame', () => {

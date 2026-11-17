@@ -7,6 +7,7 @@ import type { JournalContext } from '../components/JournalFrame'
 import { ApiError } from '../lib/api'
 import { updateJournal, type Journal } from '../lib/journal'
 import { getImageUrl, UploadError, uploadImage } from '../lib/media'
+import { withImages } from '../test/images'
 import Settings from './Settings'
 
 vi.mock('../lib/journal', async (importOriginal) => ({
@@ -46,7 +47,7 @@ function renderSettings(initial: Journal | null = journal) {
     [{ element: <FrameStub initial={initial} />, children: [{ path: '/settings', element: <Settings /> }] }],
     { initialEntries: ['/settings'] },
   )
-  render(<RouterProvider router={router} />)
+  render(withImages(<RouterProvider router={router} />))
 }
 
 describe('Settings', () => {

@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
-import { getImageUrl, isMediaId } from '../lib/media'
+import { useImageResolver } from '../lib/imageResolver'
+import { isMediaId } from '../lib/media'
 
 type Props = { mediaId: string; className?: string }
 
 // The journal's cover. Like images in entries, it is stored as a media ID and shown through a
-// fresh short-lived link from our API. If it can't be shown, nothing is drawn.
+// fresh short-lived link from our API (private or public route, chosen by the page: ADR-0009).
+// If it can't be shown, nothing is drawn.
 export default function CoverImage({ mediaId, className = '' }: Props) {
+  const resolve = useImageResolver()
   const [loaded, setLoaded] = useState<{ id: string; url?: string }>()
 
   useEffect(() => {
     if (!isMediaId(mediaId)) return
     let cancelled = false
-    getImageUrl(mediaId)
+    resolve(mediaId)
       .then((url) => {
         if (!cancelled) setLoaded({ id: mediaId, url })
       })
@@ -21,7 +24,7 @@ export default function CoverImage({ mediaId, className = '' }: Props) {
     return () => {
       cancelled = true
     }
-  }, [mediaId])
+  }, [mediaId, resolve])
 
   const url = loaded?.id === mediaId ? loaded.url : undefined
   if (!url) return null

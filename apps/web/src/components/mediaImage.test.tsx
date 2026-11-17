@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getImageUrl, UploadError, uploadImage } from '../lib/media'
+import { withImages } from '../test/images'
 import Editor from './Editor'
 import { MediaImage } from './mediaImage'
 
@@ -35,7 +36,7 @@ describe('images in the editor', () => {
 
   it('shows a stored image using a fresh link from the API', async () => {
     vi.mocked(getImageUrl).mockResolvedValue('https://s3.example/fresh-link')
-    render(<Editor label="Entry" initialContent={withImage(MEDIA_ID)} onChange={() => {}} />)
+    render(withImages(<Editor label="Entry" initialContent={withImage(MEDIA_ID)} onChange={() => {}} />))
 
     expect(await screen.findByRole('img', { name: 'Image in this entry' })).toHaveAttribute(
       'src',
@@ -45,7 +46,7 @@ describe('images in the editor', () => {
   })
 
   it('shows "Image unavailable" for an ID that is not ours, without asking the API', async () => {
-    render(<Editor label="Entry" initialContent={withImage('https://tracker.example/pixel.gif')} onChange={() => {}} />)
+    render(withImages(<Editor label="Entry" initialContent={withImage('https://tracker.example/pixel.gif')} onChange={() => {}} />))
 
     // findBy: Tiptap draws image views a moment after the editor itself.
     expect(await screen.findByText('Image unavailable')).toBeInTheDocument()
@@ -58,7 +59,7 @@ describe('images in the editor', () => {
     vi.mocked(getImageUrl).mockResolvedValue('https://s3.example/fresh-link')
     const onChange = vi.fn()
     const user = userEvent.setup()
-    render(<Editor label="Entry" onChange={onChange} />)
+    render(withImages(<Editor label="Entry" onChange={onChange} />))
 
     const photo = new File([new Uint8Array(10)], 'photo.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText('Choose an image'), photo)
@@ -79,7 +80,7 @@ describe('images in the editor', () => {
     })
     const onChange = vi.fn()
     const user = userEvent.setup()
-    render(<Editor label="Entry" onChange={onChange} />)
+    render(withImages(<Editor label="Entry" onChange={onChange} />))
 
     await user.upload(screen.getByLabelText('Choose an image'), new File(['x'], 'big.png', { type: 'image/png' }))
 
