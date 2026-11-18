@@ -63,3 +63,8 @@ output "atlas_srv_host" {
   description = "Atlas cluster host (no credentials)."
   value       = module.atlas.srv_host
 }
+
+output "mongodb_uri_secret_arn" {
+  description = "Secrets Manager ARN for MONGODB_URI (the ARN, not the value)."
+  value       = aws_secretsmanager_secret.mongodb_uri.arn
+}
