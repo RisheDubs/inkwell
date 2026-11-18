@@ -23,3 +23,13 @@ output "task_security_group_id" {
   description = "API task security group."
   value       = module.network.task_security_group_id
 }
+
+output "ecr_repository_url" {
+  description = "API image repository."
+  value       = module.ecr.repository_url
+}
+
+output "ecr_repository_arn" {
+  description = "API image repository ARN."
+  value       = module.ecr.repository_arn
+}

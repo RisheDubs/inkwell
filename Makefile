@@ -36,3 +36,12 @@ test-integration: ## Run integration tests (MongoDB + HTTP isolation) against th
 
 lint: ## Run golangci-lint in Docker (no local install needed)
 	docker run --rm -v "$(CURDIR)/$(API_DIR):/app" -w /app golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run
+FOUNDATION_DIR := infra/terraform/envs/prod/foundation
+IMAGE_TAG ?= $(shell git rev-parse --short=12 HEAD)
+ECR_REPO = $(shell terraform -chdir=$(FOUNDATION_DIR) output -raw ecr_repository_url)
+
+push-api: ## Build the API for arm64 and push it to ECR, tagged with the git SHA (clean tree only)
+	@git diff --quiet && git diff --cached --quiet || { echo "Commit your changes first: the image tag must match a commit."; exit 1; }
+	aws ecr get-login-password --region ap-southeast-2 --profile inkwell | docker login --username AWS --password-stdin $(firstword $(subst /, ,$(ECR_REPO)))
+	docker buildx build --platform linux/arm64 --provenance=false -t $(ECR_REPO):$(IMAGE_TAG) --push $(API_DIR)
+	@echo "Pushed $(ECR_REPO):$(IMAGE_TAG)"
