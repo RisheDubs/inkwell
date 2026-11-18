@@ -28,13 +28,13 @@ resource "aws_iam_role_policy" "api_content" {
         Sid      = "EntryBodiesAndMediaOnly"
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-        Resource = "${aws_s3_bucket.content.arn}/users/*"
+        Resource = "${module.content.bucket_arn}/users/*"
       },
       {
         Sid       = "UseContentKeyOnlyThroughS3"
         Effect    = "Allow"
         Action    = ["kms:GenerateDataKey", "kms:Decrypt"]
-        Resource  = aws_kms_key.content.arn
+        Resource  = module.content.kms_key_arn
         Condition = { StringEquals = { "kms:ViaService" = "s3.ap-southeast-2.amazonaws.com" } }
       },
     ]

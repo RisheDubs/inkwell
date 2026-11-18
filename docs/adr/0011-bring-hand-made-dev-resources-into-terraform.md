@@ -42,3 +42,13 @@ Option A.
 - `prevent_destroy` means removing dev on purpose needs a code change first, which is intended.
 - Interview point: `import` blocks bring existing infrastructure under IaC without recreating it,
   and the plan proves nothing changes.
+## Amendment (2026-11-19): dev uses the shared storage module
+
+- `envs/dev` now builds its bucket and key from `modules/storage` (`versioning = false`), the same
+  module as prod. `moved` blocks shifted the 9 imported resources into the module in state only;
+  the plan was 0 to add, 0 to destroy (one state-only change: `deletion_window_in_days = 7`).
+- Modules don't use `prevent_destroy`, because prod must be destroyable in one command. Dev is
+  still protected by AWS itself: a non-empty bucket can't be destroyed while `force_destroy` is
+  false, a KMS key deletion is only scheduled (7-day window, cancellable), and the user pool has
+  `deletion_protection = "ACTIVE"`.
+- Dev's CORS rule stays in the dev root, because it is dev-specific (`http://localhost:5173`).
