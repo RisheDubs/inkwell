@@ -42,6 +42,5 @@ ECR_REPO = $(shell terraform -chdir=$(FOUNDATION_DIR) output -raw ecr_repository
 
 push-api: ## Build the API for arm64 and push it to ECR, tagged with the git SHA (clean tree only)
 	@git diff --quiet && git diff --cached --quiet || { echo "Commit your changes first: the image tag must match a commit."; exit 1; }
-	aws ecr get-login-password --region ap-southeast-2 --profile inkwell | docker login --username AWS --password-stdin $(firstword $(subst /, ,$(ECR_REPO)))
-	docker buildx build --platform linux/arm64 --provenance=false -t $(ECR_REPO):$(IMAGE_TAG) --push $(API_DIR)
+	eval "$$(aws configure export-credentials --profile inkwell --format env)" && docker buildx build --platform linux/arm64 --provenance=false -t $(ECR_REPO):$(IMAGE_TAG) --push $(API_DIR)
 	@echo "Pushed $(ECR_REPO):$(IMAGE_TAG)"
