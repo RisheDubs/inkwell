@@ -33,3 +33,18 @@ output "ecr_repository_arn" {
   description = "API image repository ARN."
   value       = module.ecr.repository_arn
 }
+
+output "content_bucket_name" {
+  description = "Prod content bucket."
+  value       = module.storage.bucket_name
+}
+
+output "content_bucket_arn" {
+  description = "Prod content bucket ARN."
+  value       = module.storage.bucket_arn
+}
+
+output "content_kms_key_arn" {
+  description = "Prod content KMS key ARN."
+  value       = module.storage.kms_key_arn
+}
