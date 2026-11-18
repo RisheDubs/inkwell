@@ -42,3 +42,5 @@ Option A, with these controls:
 - Moving to B or C later is a Terraform change to the access list or cluster tier, not a code change.
 - Interview point: when the network can't be the boundary, make identity the boundary
   (least-privilege user, strong secret, TLS) and write down the trade-off.
+- A new or changed database user takes about a minute to reach the cluster; the first connection
+  right after `apply` failed with "bad auth" and succeeded a minute later.
