@@ -48,3 +48,13 @@ output "content_kms_key_arn" {
   description = "Prod content KMS key ARN."
   value       = module.storage.kms_key_arn
 }
+
+output "cognito_user_pool_id" {
+  description = "Prod user pool."
+  value       = module.cognito.user_pool_id
+}
+
+output "cognito_client_id" {
+  description = "Prod web client (public)."
+  value       = module.cognito.client_id
+}

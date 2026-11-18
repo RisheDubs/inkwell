@@ -16,3 +16,9 @@ module "storage" {
   name            = "inkwell-prod"
   key_description = "Inkwell prod: entry bodies and images"
 }
+
+module "cognito" {
+  source = "../../../modules/cognito"
+
+  name = "inkwell-prod"
+}
