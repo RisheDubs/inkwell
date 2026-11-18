@@ -68,3 +68,18 @@ output "mongodb_uri_secret_arn" {
   description = "Secrets Manager ARN for MONGODB_URI (the ARN, not the value)."
   value       = aws_secretsmanager_secret.mongodb_uri.arn
 }
+
+output "execution_role_arn" {
+  description = "ECS task execution role."
+  value       = aws_iam_role.execution.arn
+}
+
+output "task_role_arn" {
+  description = "API task role."
+  value       = aws_iam_role.task.arn
+}
+
+output "log_group_name" {
+  description = "API log group."
+  value       = aws_cloudwatch_log_group.api.name
+}
