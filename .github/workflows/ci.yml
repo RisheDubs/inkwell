@@ -79,6 +79,7 @@ jobs:
         run: |
           export MONGODB_URI="mongodb://ci:${MONGO_ROOT_PASSWORD}@localhost:27017/?directConnection=true&authSource=admin"
           go test -tags integration -count=1 -v ./...
+
   web:
     name: Web
     runs-on: ubuntu-latest
@@ -103,3 +104,35 @@ jobs:
         run: npm run build
       - name: Fail on high or critical advisories in runtime dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    # Static checks only: no AWS credentials, no backend, nothing is created.
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.17.1" # same as the host
+          terraform_wrapper: false # plain exit codes and output
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+      - name: Check formatting
+        run: terraform fmt -check -recursive -diff
+      - name: Init (no backend) and validate every root module
+        run: |
+          set -euo pipefail
+          for dir in bootstrap envs/dev envs/prod/foundation envs/prod/runtime; do
+            if compgen -G "$dir/*.tf" > /dev/null; then
+              echo "::group::$dir"
+              terraform -chdir="$dir" init -backend=false -input=false
+              terraform -chdir="$dir" validate
+              echo "::endgroup::"
+            else
+              echo "skip $dir (no .tf files yet)"
+            fi
+          done
+      - name: Lint with tflint
+        run: tflint --recursive --config "$PWD/.tflint.hcl"
