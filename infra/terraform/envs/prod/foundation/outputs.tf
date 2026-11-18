@@ -58,3 +58,8 @@ output "cognito_client_id" {
   description = "Prod web client (public)."
   value       = module.cognito.client_id
 }
+
+output "atlas_srv_host" {
+  description = "Atlas cluster host (no credentials)."
+  value       = module.atlas.srv_host
+}

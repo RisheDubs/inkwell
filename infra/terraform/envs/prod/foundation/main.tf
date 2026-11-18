@@ -22,3 +22,11 @@ module "cognito" {
 
   name = "inkwell-prod"
 }
+
+module "atlas" {
+  source = "../../../modules/atlas"
+
+  org_id       = var.atlas_org_id
+  project_name = "inkwell-prod"
+  cluster_name = "inkwell-prod"
+}
